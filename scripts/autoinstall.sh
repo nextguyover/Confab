@@ -62,4 +62,4 @@ rm -rf ${tmp_dir}
 printf " done!\n"
 
 printf "Next, setup your Confab server by following instructions here:\n\
-https://docs.confabcomments.com/quick-start/#server-setup"
+https://docs.confabcomments.com/quick-start/#server-setup\n"
