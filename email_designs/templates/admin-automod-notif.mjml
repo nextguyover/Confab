@@ -1,0 +1,168 @@
+<mjml>
+  <mj-head>
+    <mj-title>#ServiceName#</mj-title>
+    <mj-include path="./assets/mj-attributes.mjml" />
+    <mj-include path="./assets/inline-styles.css" type="css" css-inline="inline" />
+
+    <mj-attributes>
+      <mj-all font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"></mj-all>
+      <mj-text font-weight="400" font-size="16px" color="#000000" line-height="24px" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"></mj-text>
+    </mj-attributes>
+    <mj-style inline="inline">
+      .body-section {
+        -webkit-box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+        -moz-box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+        box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+
+        --comment-color-grey: #969696;
+        --comment-color-red: #ffa9a9;
+        --comment-color-background: #f7f7f7;
+        --comment-border-radius: 5px;
+      }
+      .text-link {
+        color: #5e6ebf
+      }
+      .text-bold {
+        font-weight: bold;
+      }
+      .footer-link {
+        color: #888888
+      }
+      .email{
+        text-decoration: underline;
+      }
+      .comment{
+
+        color: black;
+        padding: 10px;
+        background-color: var(--comment-color-background);
+        border-radius: var(--comment-border-radius);
+      }
+      .comment-username{
+        font-weight: 500;
+        padding-bottom: 5px;
+      }
+      .child-comment {
+        margin-left: 7px;
+        border-left: 1px solid #ccc;
+        padding-left: 10px;
+        padding-top: 10px
+      }
+
+      .location-text{
+        color: rgb(81, 170, 139);
+        font-weight: bold;
+      }
+
+      .automod-rule-panel {
+        color: black;
+        padding: 10px;
+        background-color: var(--comment-color-background);
+        border-radius: var(--comment-border-radius);
+      }
+
+      .rule-section-title {
+        font-size: 1.5em;
+        font-weight: 500;
+        padding-bottom: 5px;
+        text-align: center;
+      }
+
+      .rule-section-content {
+        text-align: center;
+        padding: 5px 0
+      }
+
+      .rule-section-content-regex {
+        font-family:'Courier New', Courier, monospace;
+      }
+
+      .rule-section-content-action {
+        font-weight: 500;
+      }
+
+      .automod-rule-panel-divider{
+        height: 1px;
+        background-color: var(--comment-color-grey);
+        margin: 10px;
+      }
+    </mj-style>
+
+  </mj-head>
+  <mj-body background-color="#E1E1E1" width="600px">
+    <mj-section full-width="full-width" background-color="#434ff5" padding-bottom="0">
+      <mj-column width="100%">
+        <mj-spacer height="20px" />
+      </mj-column>
+      <mj-column width="100%" background-color="#071E22">
+        <mj-spacer height="50px" />
+        <mj-text color="#ffffff" font-weight="bold" align="center"  font-size="40px">
+          #ServiceName#
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#071E22">
+      <mj-column width="100%">
+        <mj-spacer height="15px" />
+      </mj-column>
+    </mj-section>
+    <mj-wrapper padding-top="0" padding-bottom="0" css-class="body-section">
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="0px">
+        <mj-column width="100%">
+          <mj-text>A new comment on your site <span class="text-bold"> #ServiceName#</span> at location <span class="location-text">#CommentLocationInDb#</span> has triggered the following automoderation rule that you have configured.</mj-text>
+        </mj-column>
+      </mj-section>
+      <mj-section mj-class="automod-rule-section">
+        <mj-column mj-class="automod-rule">
+          <mj-text mj-class="automod-rule-section-title">
+            Regex
+          </mj-text>
+          <mj-text mj-class="automod-rule-section-content automod-rule-section-content-regex" >
+            #AutoModRuleRegex#
+          </mj-text>
+          <mj-spacer mj-class="automod-rule-spacer"/>
+          <mj-text mj-class="automod-rule-section-title">
+            Action
+          </mj-text>
+          <mj-text mj-class="automod-rule-section-content automod-rule-section-content-action" >
+            #AutoModRuleAction#
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      
+      <mj-section mj-class="comment-section">
+        <mj-column mj-class="comment comment-child" padding-left="10px">
+          <mj-text mj-class="comment-text comment-text-username">#CommentUserEmail# - #CommentUsername#</mj-text>
+          <mj-text mj-class="comment-text comment-text-body">#CommentText#</mj-text>
+        </mj-column>
+      </mj-section>
+
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="0px">
+        <mj-column width="100%">
+          <mj-button background-color="#331B87" color="white" href="#CommentLink#">
+            Go to Comment 🔗
+          </mj-button>
+        </mj-column>
+      </mj-section>
+      
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="20px">
+        <mj-column width="100%">
+          <mj-text font-size="11px" align="center" line-height="16px">
+            This link will only work if this comment is currently available (if the moderation action did not block posting, etc.)</mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-wrapper full-width="full-width">
+      <mj-section>
+        <mj-column width="100%" padding="0">
+          <mj-text color="#445566" font-size="11px" align="center" line-height="16px">
+            If you do not wish to receive notifications like this in the future, please disable admin notifications for this automoderation rule.
+          </mj-text>
+          <mj-text color="#445566" font-size="11px" align="center" line-height="16px">Email sent at #EmailTimestamp# • Comments by <a class="text-link" href="#ConfabUrl#">CONFAB</a></mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+  </mj-body>
+</mjml>

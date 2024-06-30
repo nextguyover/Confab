@@ -1,0 +1,4 @@
+[submodule "ConfabUI"]
+	path = ConfabUI
+	url = https://github.com/nextguyover/ConfabUI.git
+	branch = master

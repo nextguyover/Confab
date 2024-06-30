@@ -1,0 +1,76 @@
+All Email {
+    + #ServiceName#
+    + #SiteUrl#
+    + #UserEmail#
+    + #Username#
+    + #UserProfilePicUrl#
+    + #ConfabUrl#
+    + #EmailTimestamp#
+
+    [Email] auth-code {
+        + #AuthCode#
+        + #AuthCodeAutoLoginURL#
+    }
+
+    Comment Notifications {
+        + #CommentText#
+        + #CommentUpvoteCount#
+        + #CommentDownvoteCount#
+        + #CommentUsername#
+        + #CommentProfilePicUrl#
+        + #CommentLink#             //This is comment URL, calculated using appsettings.json EmailNotifications:CommentLinkBuilder
+        + #CommentCreationTime#
+        + #ParentCommentText#
+        + #ParentCommentUpvoteCount#
+        + #ParentCommentDownvoteCount#
+        + #ParentCommentCreationTime#
+
+        [Email] user-comment-reply-notif {
+            + #NotifDisableLink#
+        }
+
+        Admin Comment Notification {
+            + #CommentUserId#
+            + #CommentUserEmail#
+            + #CommentLocationInDb#
+
+            [Email] admin-comment-notif-top-level {
+                - #ParentCommentText#
+                - #ParentCommentUpvoteCount#
+                - #ParentCommentDownvoteCount#
+                - #ParentCommentCreationTime#
+            }
+
+            [Email] admin-comment-notif {
+                + #ParentCommentUsername#
+                + #ParentCommentProfilePicUrl#
+                + #ParentCommentUserId#
+                + #ParentCommentUserEmail#
+            }
+
+            [Email] admin-edit-notif {
+                - #ParentCommentText#
+                - #ParentCommentUpvoteCount#
+                - #ParentCommentDownvoteCount#
+                - #ParentCommentCreationTime#
+                + #EditPreviousContent#
+            }
+
+            [Email] admin-automod-notif {
+                - #ParentCommentText#
+                - #ParentCommentUpvoteCount#
+                - #ParentCommentDownvoteCount#
+                - #ParentCommentCreationTime#
+                + #AutoModRuleRegex#
+                + #AutoModRuleAction#
+            }
+        }
+    }
+
+    [Email] admin-mod-queue-reminder {
+        + #ModQueueInactivityTime#
+        + #ModQueueReminderTime#
+        + #ModQueueCount#
+        + #ModQueueOldestItemAge#
+    }
+}

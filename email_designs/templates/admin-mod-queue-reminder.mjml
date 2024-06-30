@@ -1,0 +1,54 @@
+<mjml>
+  <mj-head>
+    <mj-title>#ServiceName#</mj-title>
+    <mj-include path="./assets/mj-attributes.mjml" />
+    <mj-include path="./assets/inline-styles.css" type="css" css-inline="inline" />
+  </mj-head>
+  <mj-body background-color="#E1E1E1" width="600px">
+    <mj-section full-width="full-width" background-color="#434ff5" padding-bottom="0">
+      <mj-column width="100%">
+        <mj-spacer height="20px" />
+      </mj-column>
+      <mj-column width="100%" background-color="#071E22">
+        <mj-spacer height="50px" />
+        <mj-text color="#ffffff" font-weight="bold" align="center"  font-size="40px">
+          #ServiceName#
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#071E22">
+      <mj-column width="100%">
+        <mj-spacer height="15px" />
+      </mj-column>
+    </mj-section>
+    <mj-wrapper padding-top="0" padding-bottom="0" css-class="body-section">
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="0px">
+        <mj-column width="100%">
+          <mj-text>There are <span class="text-bold">#ModQueueCount#</span> user comments currently awaiting your approval in the moderation queue of <span class="text-bold">#ServiceName#</span>.</mj-text>
+          <mj-text>The oldest comment in the moderation queue was posted <span class="text-bold">#ModQueueOldestItemAge#</span> ago. </mj-text>
+          <mj-text>You are receiving this reminder because you have not actioned any comments in the moderation queue in the past #ModQueueInactivityTime#. Further reminder emails may not be sent.</mj-text>
+        </mj-column>
+      </mj-section>
+           
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="30px">
+        <mj-column width="100%">
+          <mj-button background-color="#331B87" color="white" href="#SiteUrl#">
+            Go to Site 🔗
+          </mj-button>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+    <mj-wrapper full-width="full-width">
+      <mj-section>
+        <mj-column width="100%" padding="0">
+          <mj-text color="#445566" font-size="11px" align="center" line-height="16px">
+            If you do not wish to receive notifications like this in the future, please adjust your notification preferences and customise the reminder email frequency in your appsettings.json file.
+          </mj-text>
+          <mj-text color="#445566" font-size="11px" align="center" line-height="16px">Email sent at #EmailTimestamp# • Comments by <a class="text-link" href="#ConfabUrl#">CONFAB</a></mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+  </mj-body>
+</mjml>

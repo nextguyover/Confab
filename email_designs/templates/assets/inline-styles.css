@@ -1,0 +1,22 @@
+
+.body-section {
+    -webkit-box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+    -moz-box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+    box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+}
+.text-link {
+    color: #5e6ebf
+}
+.text-bold {
+    font-weight: bold;
+}
+
+.location-text{
+    color: rgb(81, 170, 139);
+    font-weight: bold;
+}
+/* .automod-rule-spacer-css{
+    margin:10px;
+    background-color: black;
+    
+} */

@@ -1,0 +1,21 @@
+
+<mj-attributes>
+      <mj-all font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"></mj-all>
+      <mj-text font-weight="400" font-size="16px" color="#000000" line-height="24px" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"></mj-text>
+      <mj-class name="comment-section" background-color="#ffffff" padding-left="40px" padding-right="40px" padding-bottom="0" padding-top="30px"/>
+      <mj-class name="comment-child-section" padding-top="10px" padding-left="50px" />
+      <mj-class name="comment" color="black" padding="10px" width="80%" background-color="#e6e6e6" border-radius="5px"/>
+      <mj-class name="comment-child" border-left="2px solid #9e9e9e"/>
+      <mj-class name="comment-text" font-size="13px" padding="0px"/>
+      <mj-class name="comment-text-username" font-weight="700"/>
+      <mj-class name="comment-text-body"/>
+
+      <mj-class name="automod-rule-section" background-color="#ffffff" padding-left="40px" padding-right="40px" padding-bottom="0" padding-top="30px" text-align="center"/>
+
+      <mj-class name="automod-rule" width="80%" background-color="#e6e6e6" border-radius="5px"/>
+      <mj-class name="automod-rule-section-title" align="center" font-size="18px" font-weight="bold" padding-bottom="5px"/>
+      <mj-class name="automod-rule-section-content" align="center" padding-top="5px" padding-bottom="5px"/>
+      <mj-class name="automod-rule-section-content-regex" font-family="'Courier New', Courier, monospace"/>
+      <mj-class name="automod-rule-spacer" container-background-color="rgb(182, 182, 182)" height="1px" padding-left="10px" padding-right="10px"/>
+
+</mj-attributes>

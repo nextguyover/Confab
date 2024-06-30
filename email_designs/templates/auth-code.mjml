@@ -1,0 +1,80 @@
+<mjml>
+  <mj-head>
+    <mj-title>#ServiceName#</mj-title>
+    <mj-attributes>
+      <mj-all font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"></mj-all>
+      <mj-text font-weight="400" font-size="16px" color="#000000" line-height="24px" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"></mj-text>
+    </mj-attributes>
+    <mj-style inline="inline">
+      .body-section {
+        -webkit-box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+        -moz-box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+        box-shadow: 1px 4px 11px 0px rgba(0, 0, 0, 0.15);
+      }
+      .text-link {
+        color: #5e6ebf
+      }
+      .text-bold {
+        font-weight: bold;
+      }
+      .footer-link {
+        color: #888888
+      }
+      .email{
+        text-decoration: underline;
+      }
+    </mj-style>
+
+  </mj-head>
+  <mj-body background-color="#E1E1E1" width="600px">
+    <mj-section full-width="full-width" background-color="#434ff5" padding-bottom="0">
+      <mj-column width="100%">
+        <mj-spacer height="20px" />
+      </mj-column>
+      <mj-column width="100%" background-color="#071E22">
+        <mj-spacer height="50px" />
+        <mj-text color="#ffffff" font-weight="bold" align="center"  font-size="40px">
+          #ServiceName#
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#071E22">
+      <mj-column width="100%">
+        <mj-spacer height="15px" />
+      </mj-column>
+    </mj-section>
+    <mj-wrapper padding-top="0" padding-bottom="0" css-class="body-section">
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="0px">
+        <mj-column width="100%">
+          <mj-text>Your login code for comments on <span class="text-bold"> #ServiceName#</span> is:</mj-text>
+        </mj-column>
+      </mj-section>
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="20px" padding-top="50px">
+        <mj-column width="100%">
+          <mj-text align="center" font-size="40px" color="#331B87" font-weight="bold">#AuthCode#</mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+      <mj-section background-color="#ffffff" padding-left="15px" padding-right="15px" padding-bottom="30px">
+        <mj-column width="100%">
+          <mj-button background-color="#331B87" color="white" font-size="15px" href="#AuthCodeAutoLoginURL#">
+            Click here to log in automatically
+            <div style="padding-top:6px">🔑</div>
+          </mj-button>
+        </mj-column>
+      </mj-section>
+
+    <mj-wrapper full-width="full-width">
+      <mj-section>
+        <mj-column width="100%" padding="0">
+          <mj-text color="#445566" font-size="11px" align="center" line-height="16px">
+            You are receiving this email because someone attempted to use <span class="email">#UserEmail#</span> to login to comment on <a class="text-link" href="#SiteUrl#">#SiteUrl#</a>.
+
+            If this was not you, and you continue to receive these emails, please block this email address.
+          </mj-text>
+        <mj-text color="#445566" font-size="11px" align="center" line-height="16px">Email sent at #EmailTimestamp# • Comments by <a class="text-link" href="#ConfabUrl#">CONFAB</a></mj-text>        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+
+  </mj-body>
+</mjml>
