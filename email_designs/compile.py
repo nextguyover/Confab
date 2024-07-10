@@ -51,7 +51,7 @@ def compile(clean = False):
                 continue
 
             print("Compiling " + file)
-            execute_str = "" + str(mjml_path) + " --config.minify true --config.beautify false " + str(input_dir / file) + " -o " + str(compiled_file_output_dir / os.path.splitext(file)[0]) + ".html"
+            execute_str = "" + str(mjml_path) + " --config.minify true --config.beautify false " + str(input_dir / file).replace("\\", "/") + " -o " + str(compiled_file_output_dir / os.path.splitext(file)[0]) + ".html"
             os.system(execute_str)
 
     print("Done!")
