@@ -41,4 +41,5 @@ jobs:
           removeArtifacts: true
           artifacts: "./release_pkgs/*"
           tag: ${{ env.release_version }}
+          generateReleaseNotes: true
         
