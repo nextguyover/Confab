@@ -231,9 +231,15 @@ using (var context = scope.ServiceProvider.GetService<DataContext>())
         if(adminUser == null)
         {
             var userService = scope.ServiceProvider.GetService<IUserService>();
-            adminUser = await userService.CreateNewUser(context, UserRole.Admin, currentAdmin);
 
-            app.Logger.LogInformation("Created new Admin user with email: " + adminUser.Email);
+            try
+            {
+                adminUser = await userService.CreateNewUser(context, UserRole.Admin, currentAdmin);
+                app.Logger.LogInformation("Created new Admin user with email: " + adminUser.Email);
+            } catch
+            {
+                app.Logger.LogCritical("Unable to create admin user.");
+            }
         }
         else
         {
@@ -345,6 +351,12 @@ app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService,
             if (ex is UninitialisedLocationException)
             {
                 return Results.BadRequest(new LoginResponse());
+            }
+            if (ex.ToString().IndexOf("UNIQUE constraint failed: Users.PublicId") != -1)
+            {
+                app.Logger.LogError("UNIQUE constraint failed for Users.PublicId when creating a new user. " +
+                    "This could have happened because your Confab DB contains a large number of users.");
+                return Results.StatusCode(500);
             }
 
             app.Logger.LogError(ex.ToString());
@@ -570,6 +582,12 @@ app.MapPost("/comment/new", async (HttpContext context, CommentCreate commentDat
         if (ex is AutoModerationFailedException)
         {
             return Results.BadRequest(new CommentAutoModFeedback { Feedback = ((AutoModerationFailedException)ex).Feedback });
+        }
+        if(ex.ToString().IndexOf("UNIQUE constraint failed: Comments.PublicId") != -1)
+        {
+            app.Logger.LogError("UNIQUE constraint failed for Comments.PublicId when creating a new comment. " +
+                "This could have happened because your Confab DB contains a large number of comments.");
+            return Results.StatusCode(500);
         }
 
         app.Logger.LogError(ex.ToString());

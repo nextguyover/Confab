@@ -167,7 +167,7 @@ namespace Confab.Services
         private static string GenerateUserId()        //https://stackoverflow.com/a/1344258/9112181
         {
             var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            var stringChars = new char[16];
+            var stringChars = new char[8];
             var random = new Random();
 
             for (int i = 0; i < stringChars.Length; i++)

@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Confab.Data.DatabaseModels
 {
+    [Index(propertyNames: nameof(PublicId), IsUnique = true)]
     public class UserSchema
     {
         public int Id { get; set; }

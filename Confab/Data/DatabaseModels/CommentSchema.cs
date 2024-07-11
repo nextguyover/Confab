@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Confab.Data.DatabaseModels
 {
+    [Index(propertyNames: nameof(PublicId), IsUnique = true)]
     public class CommentSchema
     {
         public int Id { get; set; }
