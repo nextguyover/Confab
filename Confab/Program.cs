@@ -103,7 +103,12 @@ UserService.JwtValidationParams = new TokenValidationParameters()
     TokenDecryptionKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey)),
 };
 
-builder.Services.AddDbContext<DataContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<DataContext>(options =>
+    options.UseSqlite(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
+    )
+);
 
 builder.Services.AddSingleton<IUserService, UserService>();
 builder.Services.AddSingleton<ICommentService, CommentService>();
