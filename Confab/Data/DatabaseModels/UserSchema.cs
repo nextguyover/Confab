@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Confab.Data.DatabaseModels
 {
+    [Index(propertyNames: nameof(Email), IsUnique = true)]
     [Index(propertyNames: nameof(PublicId), IsUnique = true)]
     public class UserSchema
     {
@@ -12,7 +13,7 @@ namespace Confab.Data.DatabaseModels
         public bool IsBanned { get; set; }
         public string Username { get; set; }
 
-        public string Email { get; set; }       //TODO make this unique at db level
+        public string Email { get; set; }
 
         public string VerificationCode { get; set; }
         public DateTime VerificationExpiry { get; set; }
