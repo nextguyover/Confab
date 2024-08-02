@@ -1,6 +1,3 @@
-//dotnet ef migrations add Initial
-//dotnet ef database update
-
 using Confab.Data;
 using Confab.Models;
 using Confab.Services;
@@ -205,11 +202,10 @@ using (var scope =
   app.Services.CreateScope())
 using (var context = scope.ServiceProvider.GetService<DataContext>())
 {
-    try
-    {
+    try {   // Create the database directory if it doesn't exist
         Directory.CreateDirectory(Path.GetDirectoryName(context.Database.GetDbConnection().DataSource));
     } catch {}
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
 
     if (await context.GlobalSettings.SingleOrDefaultAsync() == null)
     {

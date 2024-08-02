@@ -367,7 +367,6 @@ FodyWeavers.xsd
 /Confab/Database/sqlite.db-wal
 /Confab/Database/sqlite.db-shm
 /Confab/Database/sqlite.db
-/Confab/Migrations/
 Confab/App_Data/email_templates/
 Confab/wwwroot/
 Confab/jwt-key
