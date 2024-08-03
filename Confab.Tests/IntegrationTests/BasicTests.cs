@@ -1,9 +1,8 @@
 using System.Net;
-using System.Text;
-using System.Text.Json;
-using Confab.Emails.TemplateSubstitution;
-using ConfabTests.MockDependencies;
 using Xunit;
+using Confab.Tests.Helpers;
+using System.Text.Json;
+using Confab.Models;
 
 namespace Confab.Tests.IntegrationTests;
 
@@ -24,31 +23,64 @@ public class BasicTests : IClassFixture<CustomWebApplicationFactory<Program>>
         StringContent request;
         HttpResponseMessage response;
 
-        request = new StringContent(JsonSerializer.Serialize(new
+        request = HttpHelpers.JsonSerialize(new
         {
             Location = "/"
-        }), Encoding.UTF8, "application/json");
+        });
         response = await client.PostAsync("/comment/get-at-location", request);
-
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);   // attempting to get comments at non-initialised location should return 400
 
-        request = new StringContent(JsonSerializer.Serialize(new
+        request = HttpHelpers.JsonSerialize(new
         {
-            Email = "admin@example.com",     //doesn't work with the test appsettings.json email
+            Email = "user@example.com",
             Location = "/"
-        }), Encoding.UTF8, "application/json");
+        });
         response = await client.PostAsync("/user/login", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);   // attempting user login at non-initialised location should return 400
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // requesting auth code with admin account
+        await InitialisationHelpers.EnableCommentingAtLocation(client, "/");   // admin enables commenting at location
 
-        request = new StringContent(JsonSerializer.Serialize(new
+        client.DefaultRequestHeaders.Clear();
+
+        request = HttpHelpers.JsonSerialize(new
         {
-            Email = "admin@example.com",
-            LoginCode = ((AuthCodeTemplatingData)MockEmailService.SentMessages.Last()).AuthCode,
             Location = "/"
-        }), Encoding.UTF8, "application/json");
-        response = await client.PostAsync("/user/login", request);   // logging in with admin account
+        });
+        response = await client.PostAsync("/comment/get-at-location", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // attempting to get comments at now initialised location
+    }
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    [Fact]
+    public async Task CommentCreation()
+    {
+        var client = _factory.CreateClient();
+
+        StringContent request;
+        HttpResponseMessage response;
+
+        await InitialisationHelpers.EnableCommentingAtLocation(client, "/");
+
+        await InitialisationHelpers.Login(client, "user@example.com", "/");  //user login
+
+        request = HttpHelpers.JsonSerialize(new
+        {
+            Location = "/",
+            Content = "Example comment"
+        });
+        response = await client.PostAsync("/comment/new", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // creating new comment
+
+        request = HttpHelpers.JsonSerialize(new
+        {
+            Location = "/"
+        });
+        response = await client.PostAsync("/comment/get-at-location", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // creating new comment
+
+        string content = await response.Content.ReadAsStringAsync();
+        List<Comment> comments = JsonSerializer.Deserialize<List<Comment>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        Assert.True(comments.Count == 1);   // checking that comment was created correctly
+        Assert.True(comments[0].Content == "Example comment");
     }
 }

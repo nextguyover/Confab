@@ -5,7 +5,7 @@ VisualStudioVersion = 17.6.33829.357
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Confab", "Confab\Confab.csproj", "{00582D87-9A17-4ECF-A70F-0F634C918D21}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConfabTests", "Confab.Tests\ConfabTests.csproj", "{36566C20-3226-42DD-A755-D5D737EE0839}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Confab.Tests", "Confab.Tests\Confab.Tests.csproj", "{36566C20-3226-42DD-A755-D5D737EE0839}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

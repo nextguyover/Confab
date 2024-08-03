@@ -3,7 +3,7 @@ using Confab.Emails;
 using Confab.Services;
 using MimeKit;
 
-namespace ConfabTests.MockDependencies
+namespace Confab.Tests.MockDependencies
 {
     public class MockEmailService : EmailService
     {

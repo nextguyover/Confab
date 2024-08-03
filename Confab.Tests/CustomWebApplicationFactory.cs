@@ -4,8 +4,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Confab.Data;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Confab.Services;
-using ConfabTests.MockDependencies;
+using Confab.Tests.MockDependencies;
 using Confab.Services.Interfaces;
 
 namespace Confab.Tests;
