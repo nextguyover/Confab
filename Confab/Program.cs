@@ -1094,3 +1094,4 @@ app.Logger.LogInformation("Confab initialised successfully, starting application
 
 app.Run();
 
+public partial class Program { };

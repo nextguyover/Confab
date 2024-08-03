@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33829.357
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Confab", "Confab\Confab.csproj", "{00582D87-9A17-4ECF-A70F-0F634C918D21}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Confab", "Confab\Confab.csproj", "{00582D87-9A17-4ECF-A70F-0F634C918D21}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConfabTests", "Confab.Tests\ConfabTests.csproj", "{36566C20-3226-42DD-A755-D5D737EE0839}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{00582D87-9A17-4ECF-A70F-0F634C918D21}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{00582D87-9A17-4ECF-A70F-0F634C918D21}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{00582D87-9A17-4ECF-A70F-0F634C918D21}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36566C20-3226-42DD-A755-D5D737EE0839}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36566C20-3226-42DD-A755-D5D737EE0839}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36566C20-3226-42DD-A755-D5D737EE0839}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36566C20-3226-42DD-A755-D5D737EE0839}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

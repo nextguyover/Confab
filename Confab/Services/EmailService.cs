@@ -168,7 +168,7 @@ namespace Confab.Services
             return await _SendEmail(template, message, UserNotificationEmailsMailbox);
         }
 
-        private async Task<bool> _SendEmail(ITemplate emailTemplate, MimeMessage emailMessage, SmptMailbox fromMailbox) {
+        protected virtual async Task<bool> _SendEmail(ITemplate emailTemplate, MimeMessage emailMessage, SmptMailbox fromMailbox) {
             string emailBody = emailTemplate.GetTemplateFile();
             emailTemplate.Substitute(ref emailBody);
 
