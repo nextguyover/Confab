@@ -197,7 +197,7 @@ namespace Confab.Services
             }
         }
 
-        public async Task<LoginResponse> Login(UserLogin userLogin, DataContext context, WebApplicationBuilder builder)
+        public async Task<LoginResponse> Login(UserLogin userLogin, DataContext context)
         {
             UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
 
@@ -247,8 +247,8 @@ namespace Confab.Services
                 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey));
 
                 var token = new JwtSecurityTokenHandler().CreateJwtSecurityToken(
-                        issuer: builder.Configuration["ConfabParams:ExternalUrl"],
-                        audience: builder.Configuration["ConfabParams:ExternalUrl"],
+                        issuer: JwtValidationParams.ValidIssuer,
+                        audience: JwtValidationParams.ValidAudience,
                         subject: new ClaimsIdentity(claims),
                         notBefore: DateTime.UtcNow,
                         expires: DateTime.UtcNow.AddDays(7),

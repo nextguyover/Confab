@@ -376,7 +376,7 @@ app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService,
 
     try    //if LoginCode is provided, user is trying to login
     {
-        return Results.Ok(await userService.Login(userLogin, dbCtx, builder));
+        return Results.Ok(await userService.Login(userLogin, dbCtx));
     }
     catch (Exception ex)
     {

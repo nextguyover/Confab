@@ -8,7 +8,7 @@ namespace Confab.Services.Interfaces
 {
     public interface IUserService
     {
-        public Task<LoginResponse> Login(UserLogin userLogin, DataContext context, WebApplicationBuilder builder);
+        public Task<LoginResponse> Login(UserLogin userLogin, DataContext context);
         public Task ChangeUsername(UsernameChange usernameChange, HttpContext httpContext, DataContext context);
         public Task<bool> UserIdExists(string publicUserId, DataContext context);
         public Task<bool> IsAdmin(HttpContext httpContext, DataContext context);
