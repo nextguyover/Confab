@@ -38,14 +38,19 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             services.Replace(ServiceDescriptor.Scoped<IEmailService, MockEmailService>());
         });
 
+        builder.UseEnvironment("Development");
+    }
+
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
         var projectDir = Directory.GetCurrentDirectory();
         var configPath = Path.Combine(projectDir, "appsettings.Tests.json");
 
-        builder.ConfigureAppConfiguration((conf) =>
+        builder.ConfigureHostConfiguration(config =>
         {
-            conf.AddJsonFile(configPath);
+            config.AddJsonFile(configPath);
         });
 
-        builder.UseEnvironment("Development");
+        return base.CreateHost(builder);
     }
 }
