@@ -1,0 +1,36 @@
+name: Run tests
+on:
+  push:
+    branches:
+      - main
+      - prod
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    name: Compile and create release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with: 
+          ref: main
+          submodules: 'true'
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Compile email templates
+        run: |
+          python email_designs/compile.py
+      - name: Run tests
+        run: |
+          cd Confab.Tests && dotnet test
+        
