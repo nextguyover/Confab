@@ -196,7 +196,11 @@ using (var scope = app.Services.CreateScope())
     ApiLoggingMiddleware.logger = scope.ServiceProvider.GetRequiredService<ILogger<ApiLoggingMiddleware>>();
 }
 
-app.Urls.Add("http://*:" + builder.Configuration["ConfabParams:Server:Port"]);   //will throw an error if using IIS
+try
+{
+    app.Urls.Add("http://*:" + builder.Configuration["ConfabParams:Server:Port"]);
+}
+catch { }
 
 using (var scope =
   app.Services.CreateScope())

@@ -3,6 +3,8 @@ using Xunit;
 using Confab.Tests.Helpers;
 using System.Text.Json;
 using Confab.Models;
+using Confab.Data;
+using Confab.Data.DatabaseModels;
 
 namespace Confab.Tests.IntegrationTests;
 
@@ -25,7 +27,7 @@ public class BasicTests : IClassFixture<CustomWebApplicationFactory<Program>>
 
         request = HttpHelpers.JsonSerialize(new
         {
-            Location = "/"
+            Location = "/unitialised-location"
         });
         response = await client.PostAsync("/comment/get-at-location", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);   // attempting to get comments at non-initialised location should return 400
@@ -33,18 +35,18 @@ public class BasicTests : IClassFixture<CustomWebApplicationFactory<Program>>
         request = HttpHelpers.JsonSerialize(new
         {
             Email = "user@example.com",
-            Location = "/"
+            Location = "/unitialised-location"
         });
         response = await client.PostAsync("/user/login", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);   // attempting user login at non-initialised location should return 400
 
-        await InitialisationHelpers.EnableCommentingAtLocation(client, "/");   // admin enables commenting at location
+        await InitialisationHelpers.EnableCommentingAtLocation(client, "/unitialised-location");   // admin enables commenting at location
 
         client.DefaultRequestHeaders.Clear();
 
         request = HttpHelpers.JsonSerialize(new
         {
-            Location = "/"
+            Location = "/unitialised-location"
         });
         response = await client.PostAsync("/comment/get-at-location", request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // attempting to get comments at now initialised location
