@@ -3,8 +3,9 @@ using Xunit;
 using Confab.Tests.Helpers;
 using System.Text.Json;
 using Confab.Models;
-using Confab.Data;
-using Confab.Data.DatabaseModels;
+using Confab.Models.UserAuth;
+using Confab.Emails.TemplateSubstitution;
+using Confab.Tests.MockDependencies;
 
 namespace Confab.Tests.IntegrationTests;
 
@@ -40,9 +41,37 @@ public class BasicTests : IClassFixture<CustomWebApplicationFactory<Program>>
         response = await client.PostAsync("/user/login", request);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);   // attempting user login at non-initialised location should return 400
 
-        await InitialisationHelpers.EnableCommentingAtLocation(client, "/unitialised-location");   // admin enables commenting at location
+        request = HttpHelpers.JsonSerialize(new
+        {
+            Email = "admin@example.com",
+            Location = "/unitialised-location"
+        });
+        response = await client.PostAsync("/user/login", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // requesting auth code as admin
 
-        client.DefaultRequestHeaders.Clear();
+        request = HttpHelpers.JsonSerialize(new
+        {
+            Email = "admin@example.com",
+            LoginCode = ((AuthCodeTemplatingData)MockEmailService.SentMessages["admin@example.com"].Last()).AuthCode,
+            Location = "/unitialised-location"
+        });
+        response = await client.PostAsync("/user/login", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // logging in as admin
+
+        string content = await response.Content.ReadAsStringAsync();
+        string token = JsonSerializer.Deserialize<LoginResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }).Token;
+
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+
+        request = HttpHelpers.JsonSerialize(new
+        {
+            Location = "/unitialised-location",
+            CommentingStatus = 0,
+        });
+        response = await client.PostAsync("/admin/settings/set-local", request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);   // enabling commenting at location
+
+        client.DefaultRequestHeaders.Clear();   // logging out admin
 
         request = HttpHelpers.JsonSerialize(new
         {
@@ -60,9 +89,9 @@ public class BasicTests : IClassFixture<CustomWebApplicationFactory<Program>>
         StringContent request;
         HttpResponseMessage response;
 
-        await InitialisationHelpers.EnableCommentingAtLocation(client, "/");
+        DbHelpers.EnableCommentingAtLocation(_factory, "");
 
-        await InitialisationHelpers.Login(client, "user@example.com", "/");  //user login
+        await AuthHelpers.Login(client, _factory, "user@example.com", "/");  //user login
 
         request = HttpHelpers.JsonSerialize(new
         {

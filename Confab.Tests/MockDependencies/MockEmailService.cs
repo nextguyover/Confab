@@ -7,11 +7,14 @@ namespace Confab.Tests.MockDependencies
 {
     public class MockEmailService : EmailService
     {
-        public static List<ITemplate> SentMessages = new List<ITemplate>();
+        public static Dictionary<string, List<ITemplate>> SentMessages = new Dictionary<string, List<ITemplate>>();
 
         override protected Task<bool> _SendEmail(ITemplate emailTemplate, MimeMessage emailMessage, SmptMailbox fromMailbox)
         {
-            SentMessages.Add(emailTemplate);
+            if (!SentMessages.ContainsKey(emailMessage.To.Mailboxes.First().Address)) {
+                SentMessages[emailMessage.To.Mailboxes.First().Address] = new List<ITemplate>();
+            }
+            SentMessages[emailMessage.To.Mailboxes.First().Address].Add(emailTemplate);
             return Task.FromResult(true);
         }
     }
