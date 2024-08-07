@@ -55,9 +55,9 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
+          context: ./
           push: true
-          tags: [
-              ${{ vars.DOCKERHUB_USERNAME }}/confab:${{ env.release_version }},
-              ${{ vars.DOCKERHUB_USERNAME }}/confab:latest
-            ]
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/confab:${{ env.release_version }},
+            ${{ vars.DOCKERHUB_USERNAME }}/confab:latest
         
