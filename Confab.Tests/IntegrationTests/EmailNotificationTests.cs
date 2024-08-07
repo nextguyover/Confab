@@ -6,6 +6,7 @@ using Confab.Models;
 using Confab.Emails.TemplateSubstitution;
 using Confab.Tests.MockDependencies;
 using Confab.Models.UserAuth;
+using Confab.Services.Interfaces;
 
 namespace Confab.Tests.IntegrationTests
 {
@@ -21,8 +22,6 @@ namespace Confab.Tests.IntegrationTests
         [Fact]
         public async Task AdminNotificationForNewTopLevelComment()
         {
-            string userEmail = "EmailNotificationTestsAdminNotificationForNewTopLevelComment@example.com".ToLower();
-
             var client = _factory.CreateClient();
 
             StringContent request;
@@ -30,7 +29,7 @@ namespace Confab.Tests.IntegrationTests
 
             DbHelpers.EnableCommentingAtLocation(_factory, "");
 
-            await AuthHelpers.Login(client, _factory, userEmail, "/");  //user login
+            await AuthHelpers.Login(client, _factory, "user@example.com", "/");  //user login
 
             request = HttpHelpers.JsonSerialize(new
             {
@@ -43,7 +42,16 @@ namespace Confab.Tests.IntegrationTests
             string content = await response.Content.ReadAsStringAsync();
             string commentId = JsonSerializer.Deserialize<NewCommentCreated>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }).CommentId;
 
-            Assert.True(((AdminCommentNotifTopLvlTemplatingData)MockEmailService.SentMessages["admin@example.com"].Last()).CommentLink.IndexOf(commentId) != -1);   // check if the admin received a notification
+            bool adminNotified = false;
+            foreach (var email in MockEmailService.SentMessages["admin@example.com"])
+            {
+                if (email is AdminCommentNotifTopLvlTemplatingData && ((AdminCommentNotifTopLvlTemplatingData)email).CommentLink.IndexOf(commentId) != -1)
+                {
+                    adminNotified = true;
+                    break;
+                }
+            }
+            Assert.True(adminNotified);
         }
     }
 }

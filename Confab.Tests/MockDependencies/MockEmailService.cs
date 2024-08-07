@@ -2,12 +2,13 @@
 using Confab.Emails;
 using Confab.Services;
 using MimeKit;
+using System.Collections.Concurrent;
 
 namespace Confab.Tests.MockDependencies
 {
     public class MockEmailService : EmailService
     {
-        public static Dictionary<string, List<ITemplate>> SentMessages = new Dictionary<string, List<ITemplate>>();
+        public static ConcurrentDictionary<string, List<ITemplate>> SentMessages = new ConcurrentDictionary<string, List<ITemplate>>();
 
         override protected Task<bool> _SendEmail(ITemplate emailTemplate, MimeMessage emailMessage, SmptMailbox fromMailbox)
         {
