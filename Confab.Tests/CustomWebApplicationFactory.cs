@@ -32,7 +32,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             services.AddDbContext<DataContext>((container, options) =>
             {
                 var connection = container.GetRequiredService<DbConnection>();
-                options.UseSqlite(connection, o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                options.UseSqlite(connection, o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
             });
 
             services.Replace(ServiceDescriptor.Scoped<IEmailService, MockEmailService>());
