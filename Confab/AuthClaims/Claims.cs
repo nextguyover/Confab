@@ -36,7 +36,7 @@ namespace Confab.AuthClaims
             DateTime tokenCreation = DateTimeOffset.FromUnixTimeSeconds(long.Parse(jwtToken.Claims.First(claim => claim.Type == "nbf").Value)).UtcDateTime;
             DateTime tokenExpiry = DateTimeOffset.FromUnixTimeSeconds(long.Parse(jwtToken.Claims.First(claim => claim.Type == "exp").Value)).UtcDateTime;
 
-            if (tokenCreation < ValidityStart.AddSeconds(-1)) throw new MissingAuthorizationException();
+            if (tokenCreation < ValidityStart.AddSeconds(-5)) throw new MissingAuthorizationException();
             if (tokenExpiry < DateTime.UtcNow) throw new MissingAuthorizationException();
 
             var claimVal = jwtToken.Claims.First(claim => claim.Type == claimType).Value;
