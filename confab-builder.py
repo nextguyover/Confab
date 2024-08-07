@@ -53,14 +53,16 @@ def build_backend(clean = False, platform = ""):
     if platform == "" or platform == None:
         platform_arg = ""
     else:
-        platform_arg = "--runtime " + platform + " --self-contained true"
+        platform_arg = "--runtime " + platform
+
+    bundle_runtime = "--self-contained true" if args.bundle_runtime else "--self-contained false"
         
-    os.system(f"dotnet publish --configuration Release --output build {platform_arg}")
+    os.system(f"dotnet publish --configuration Release --output build {platform_arg} {bundle_runtime}")
     
     os.chdir(str(current_dir))
 
     shutil.copytree(Path("./Confab/build"), confab_build_dir, dirs_exist_ok = True, ignore=ignore_files)
-    shutil.copytree(Path("./scripts"), confab_build_dir, dirs_exist_ok = True)
+    shutil.copytree(Path("./Confab/scripts"), confab_build_dir, dirs_exist_ok = True)
 
     if(os.path.exists(Path("./Confab/build"))): shutil.rmtree(Path("./Confab/build"))
 
@@ -82,9 +84,10 @@ def transfer_ui_to_backend():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("confab_builder")
 
-    parser.add_argument('-m', '--mode', choices=['ui', 'backend', 'full'], default='full', help='Choose whether to build UI, backend, or both')
-    parser.add_argument('-c', "--clean", action='store_true', help="Clean build")
-    parser.add_argument('-p', '--platform', help='Compile .NET backend for specific platform (leave empty for current platform). Specifying this option bundles .NET runtime with app.')
+    parser.add_argument("-m", "--mode", choices=["ui", "backend", "full"], default="full", help="Choose whether to build UI, backend, or both")
+    parser.add_argument("-c", "--clean", action="store_true", help="Clean build")
+    parser.add_argument("-p", "--platform", help="Compile .NET backend for specific platform (leave empty for current platform).")
+    parser.add_argument("-b", "--bundle-runtime", action="store_true", help="Bundle .NET runtime (will run without requiring .NET runtime to be installed, but will increase build size)")
 
     args = parser.parse_args()
 
