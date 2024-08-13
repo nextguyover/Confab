@@ -149,7 +149,10 @@ namespace Confab.Services
 
         public async Task<UserSchema> CreateNewUser(DataContext context, UserRole role, string email)
         {
-            if(MaxNewSignups != -1 && await context.Users.Where(u => u.RecordCreation > DateTime.UtcNow.AddMinutes(MaxNewSignupsDurationMinutes * -1)).CountAsync() >= MaxNewSignups)
+            if(MaxNewSignups != -1 && await context.Users.Where(u => 
+                u.RecordCreation > DateTime.UtcNow.AddMinutes(MaxNewSignupsDurationMinutes * -1) &&
+                u.AccountCreation == DateTime.MinValue  // only count new sign ups that haven't logged in yet
+            ).CountAsync() >= MaxNewSignups)
             {
                 throw new MaxNewSignupsLimitException();
             }
