@@ -19,5 +19,6 @@
         VerificationCodeGenericFailure = 7,
         VerificationEmailsRateLimit = 8,
         AuthenticationDisabled = 9,
+        MaxNewSignupsLimitFailure = 10,
     }
 }

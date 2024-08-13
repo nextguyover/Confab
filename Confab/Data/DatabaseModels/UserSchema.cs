@@ -19,8 +19,8 @@ namespace Confab.Data.DatabaseModels
         public DateTime VerificationExpiry { get; set; }
         public int VerificationCodeAttempts { get; set; }
 
-        public int VerificationCodeEmailCount { get; set; }     //Number of verification emails sent (resets on sucessful login, or if certain duration has elapsed since first verification email sent
-        public DateTime VerificationCodeFirstEmail { get; set; }    //Timestamp of first verification code email sent (resets on sucessful login)
+        public int VerificationCodeEmailCount { get; set; }     //Number of verification emails sent (resets on successful login, or if certain duration has elapsed since first verification email sent
+        public DateTime VerificationCodeFirstEmail { get; set; }    //Timestamp of first verification code email sent (resets on successful login)
 
 
         [InverseProperty("Author")]
@@ -32,8 +32,9 @@ namespace Confab.Data.DatabaseModels
         [InverseProperty("DownvotedUsers")]
         public List<CommentSchema> DownvotedComments { get; set; } = new List<CommentSchema>();
 
-        public DateTime AccountCreation { get; set; }
-        public DateTime LastActive { get; set; }
+        public DateTime RecordCreation { get; set; }    // set when user first requests a verification code (when db record is first created)
+        public DateTime AccountCreation { get; set; }   // set when user first logs in (not when they first request a verification code)
+        public DateTime LastActive { get; set; }    // updated on any authenticated action
         public DateTime LastUsernameChange { get; set; }
 
         public bool ReplyNotificationsEnabled { get; set; } = true;

@@ -16,6 +16,7 @@
     public class UninitialisedLocationException : Exception { }
     public class EmailSendErrorException : Exception { }
     public class VerificationEmailsRateLimitException : Exception { }
+    public class MaxNewSignupsLimitException : Exception { }
     public class InvalidConfigException : Exception  { public InvalidConfigException(string message) : base(message){} }
     public class CommentAwaitingModerationException : Exception { }
     public class UserReachedModQueueMaxCountException : Exception { }

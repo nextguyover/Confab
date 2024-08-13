@@ -25,6 +25,9 @@ namespace Confab.Services
         public static int MaxVerificationCodeEmails = 5;
         public static int MaxVerificationCodeEmailResetDurationHours = 24;
 
+        public static int MaxNewSignups = -1;
+        public static int MaxNewSignupsDurationMinutes = 60;
+
         public static bool CustomUsernamesEnabled = false;
         public static int UsernameChangeCooldownTimeMins = 60;
 
@@ -146,12 +149,18 @@ namespace Confab.Services
 
         public async Task<UserSchema> CreateNewUser(DataContext context, UserRole role, string email)
         {
+            if(MaxNewSignups != -1 && await context.Users.Where(u => u.RecordCreation > DateTime.UtcNow.AddMinutes(MaxNewSignupsDurationMinutes * -1)).CountAsync() >= MaxNewSignups)
+            {
+                throw new MaxNewSignupsLimitException();
+            }
+
             UserSchema user = new UserSchema();
             user.Role = role;
+            user.RecordCreation = DateTime.UtcNow;
 
             if (!EmailService.ValidateEmail(email))
             {
-                Console.Error.WriteLine("User bypassed UI email validity check, or invalid account email(s) in appsettings.json");
+                _logger.LogError("User bypassed UI email validity check, or invalid account email(s) in appsettings.json");
                 throw new InvalidEmailException();
             }
             user.Email = email;

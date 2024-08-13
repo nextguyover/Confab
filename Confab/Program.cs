@@ -147,6 +147,8 @@ UserService.VerificationCodeExpirySeconds = int.Parse(builder.Configuration["Use
 UserService.MaxVerificationCodeAttempts = int.Parse(builder.Configuration["UserAuthParams:MaxVerificationCodeAttempts"]);
 UserService.MaxVerificationCodeEmails = int.Parse(builder.Configuration["UserAuthParams:MaxVerificationCodeEmails"]);
 UserService.MaxVerificationCodeEmailResetDurationHours = int.Parse(builder.Configuration["UserAuthParams:MaxVerificationCodeEmailResetDurationHours"]);
+UserService.MaxNewSignups = int.Parse(builder.Configuration["UserAuthParams:MaxNewSignups"]);
+UserService.MaxNewSignupsDurationMinutes = int.Parse(builder.Configuration["UserAuthParams:MaxNewSignupsDurationMinutes"]);
 
 UserService.CustomUsernamesEnabled = bool.Parse(builder.Configuration["Usernames:CustomUsernamesEnabled"]);
 UserService.UsernameChangeCooldownTimeMins = int.Parse(builder.Configuration["Usernames:UsernameChangeCooldownTimeMins"]);
@@ -317,6 +319,14 @@ app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService,
                 return Results.BadRequest(new LoginResponse
                 {
                     Outcome = LoginOutcome.VerificationEmailsRateLimit
+                });
+            }
+
+            if (ex is MaxNewSignupsLimitException)
+            {
+                return Results.BadRequest(new LoginResponse
+                {
+                    Outcome = LoginOutcome.MaxNewSignupsLimitFailure
                 });
             }
 
