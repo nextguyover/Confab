@@ -1,10 +1,24 @@
-# Confab - Beautiful Comments For Your Site
+<h2 align="center">
+<a href="https://confabcomments.com/"> <img width="50%" src="./images/logo.svg" /></a>
+</h2>
 
-Confab is a drop-in commenting solution for your website.
+<h3 align="center">Beautiful Comments For Your Site</h3>
 
-### 🎭 [Demo](https://confabcomments.com)
-### 🚀 [Quickstart](https://docs.confabcomments.com/quick-start/)
-### 📚 [Docs](https://docs.confabcomments.com/overview/)
+<h3 align="center"> 🎭 <a href="https://confabcomments.com">Demo</a></h3>
+<h3 align="center"> 🚀 <a href="https://docs.confabcomments.com/quick-start/">Quickstart</a></h3>
+<h3 align="center"> 📚 <a href="https://docs.confabcomments.com/overview/">Docs</a></h3>
+
+# Overview
+
+Confab is a drop-in commenting solution for your website. [Learn more](https://docs.confabcomments.com/overview/)
+
+### Features
+
+- Passwordless user authentication via email
+- Full markdown support
+- Comment edits (with edit history)
+- Admin moderation features, including a manual moderation queue, basic auto moderation, mass deletion and banning
+- Comment reply notifications and admin notifications via email
 
 # Development
 
