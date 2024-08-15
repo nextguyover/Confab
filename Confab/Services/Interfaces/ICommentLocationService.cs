@@ -6,8 +6,8 @@ namespace Confab.Services.Interfaces
 {
     public interface ICommentLocationService
     {
-        Task<CommentLocationSchema> CreateNewLocation(DataContext context, string locationString);
-        //Task<LocalCommentSettings> GetLocalSettings(DataContext context, string locationString);
-        Task<CommentLocationSchema> GetLocation(DataContext context, string locationString);
+        Task<CommentLocationSchema> CreateNewLocation(DataContext dbCtx, string locationString);
+        //Task<LocalCommentSettings> GetLocalSettings(DataContext dbCtx, string locationString);
+        Task<CommentLocationSchema> GetLocation(DataContext dbCtx, string locationString);
     }
 }

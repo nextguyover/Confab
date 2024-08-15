@@ -29,15 +29,15 @@ namespace Confab.Services
         private static ILogger _logger;
         public static ILogger logger { set { _logger = value; } }
 
-        public async Task CheckAndSendModQueueReminder(DataContext context)
+        public async Task CheckAndSendModQueueReminder(DataContext dbCtx)
         {
             _logger.LogDebug("Running periodic check for moderation queue reminders");
 
-            List<CommentSchema> modQueueComments = await context.Comments.Where(c => c.AwaitingModeration).ToListAsync();
+            List<CommentSchema> modQueueComments = await dbCtx.Comments.Where(c => c.AwaitingModeration).ToListAsync();
 
             if (modQueueComments.Count != 0)
             {
-                GlobalSettingsSchema globalSettings = await context.GlobalSettings.SingleAsync();
+                GlobalSettingsSchema globalSettings = await dbCtx.GlobalSettings.SingleAsync();
 
                 CommentSchema oldestComment = new CommentSchema { CreationTime = DateTime.MaxValue };
                 foreach (CommentSchema comment in modQueueComments)
@@ -60,7 +60,7 @@ namespace Confab.Services
 
                         if (!emailSent)     //only send one reminder email at once
                         {
-                            foreach (UserSchema admin in await context.Users.Where(u => u.Role == UserRole.Admin).ToListAsync())
+                            foreach (UserSchema admin in await dbCtx.Users.Where(u => u.Role == UserRole.Admin).ToListAsync())
                             {
                                 if (await SendEmail(new AdminModQueueReminderTemplatingData
                                 {

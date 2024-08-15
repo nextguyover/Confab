@@ -10,16 +10,16 @@ namespace Confab.Tests.Helpers
         {
             using (var scope = factory.Services.CreateScope())
             {
-                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                var locationService = scope.ServiceProvider.GetRequiredService<ICommentLocationService>();
-                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-                var userLogin = new UserLogin { Email = email, Location = locationStr };
+                IUserService userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                IEmailService emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                ICommentLocationService locationService = scope.ServiceProvider.GetRequiredService<ICommentLocationService>();
+                DataContext dbCtx = scope.ServiceProvider.GetRequiredService<DataContext>();
+                UserLogin userLogin = new UserLogin { Email = email, Location = locationStr };
 
-                await userService.SendVerificationCode(userLogin, emailService, locationService, context, true);
-                userLogin.LoginCode = context.Users.Single(u => u.Email == email).VerificationCode;
+                await userService.SendVerificationCode(userLogin, emailService, locationService, dbCtx, true);
+                userLogin.LoginCode = dbCtx.Users.Single(u => u.Email == email).VerificationCode;
 
-                var loginResponse = await userService.Login(userLogin, context);
+                LoginResponse loginResponse = await userService.Login(userLogin, dbCtx);
 
                 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {loginResponse.Token}");
             }

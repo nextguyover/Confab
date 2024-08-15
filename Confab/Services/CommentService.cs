@@ -42,20 +42,20 @@ namespace Confab.Services
         public static int RateLimitingTimeDurationMins = 1440;
         public static int RateLimitingMaxCommentsPerTimeDuration = 5;
 
-        public async Task<NewCommentCreated> Create(CommentCreate commentCreate, ICommentLocationService locationService, IEmailService emailService, HttpContext httpContext, DataContext context)
+        public async Task<NewCommentCreated> Create(CommentCreate commentCreate, ICommentLocationService locationService, IEmailService emailService, HttpContext httpContext, DataContext dbCtx)
         {
             ValidateCommentContent(commentCreate.Content);
 
-            UserSchema author = await UserService.GetUserFromJWT(httpContext, context);
+            UserSchema author = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
-            UserService.CheckIfBanned(author, context);
+            UserService.CheckIfBanned(author, dbCtx);
 
-            CommentLocationSchema location = await locationService.GetLocation(context, commentCreate?.Location);
+            CommentLocationSchema location = await locationService.GetLocation(dbCtx, commentCreate?.Location);
             if (location == null) {
                 throw new UninitialisedLocationException();
             }
 
-            await VerifyCommentingEnabled(author, location, context);
+            await VerifyCommentingEnabled(author, location, dbCtx);
 
             CommentSchema newComment = new CommentSchema();
             newComment.Author = author;
@@ -75,7 +75,7 @@ namespace Confab.Services
 
             if (!commentCreate.ParentCommentId.IsNullOrEmpty())
             {
-                newComment.ParentComment = await context.Comments
+                newComment.ParentComment = await dbCtx.Comments
                     .Include(c => c.ChildComments)
                     .Include(c => c.Author)
                     .Include(c => c.UpvotedUsers)
@@ -91,21 +91,21 @@ namespace Confab.Services
 
             newComment.PublicId = GenerateCommentId();
 
-            (bool approved, string feedback) automod = await ValidateWithAutoModRules(newComment, emailService, context);
+            (bool approved, string feedback) automod = await ValidateWithAutoModRules(newComment, emailService, dbCtx);
             if (!automod.approved)
             {
                 throw new AutoModerationFailedException(automod.feedback);
             }
 
-            context.Comments.Add(newComment);
-            await context.SaveChangesAsync();
+            dbCtx.Comments.Add(newComment);
+            await dbCtx.SaveChangesAsync();
 
-            await HandleNewCommentNotifications(newComment, emailService, context);
+            await HandleNewCommentNotifications(newComment, emailService, dbCtx);
 
             return new NewCommentCreated { CommentId = newComment.PublicId };
         }
 
-        private async Task HandleNewCommentNotifications(CommentSchema newComment, IEmailService emailService, DataContext context, UserSchema approvedByAdmin = null)
+        private async Task HandleNewCommentNotifications(CommentSchema newComment, IEmailService emailService, DataContext dbCtx, UserSchema approvedByAdmin = null)
         {
             bool userEmailSent = false;
             if (newComment.ParentComment != null
@@ -115,7 +115,7 @@ namespace Confab.Services
                 && !newComment.ParentComment.Author.IsBanned
                 && (approvedByAdmin == null || (approvedByAdmin != null && newComment.ParentComment?.Author.Role != UserRole.Admin))
                 && newComment.Location.UserNotifLocal
-                && (await context.GlobalSettings.SingleAsync()).UserNotifGlobal)        //notify user being replied to
+                && (await dbCtx.GlobalSettings.SingleAsync()).UserNotifGlobal)        //notify user being replied to
             {
                 emailService.SendEmailFireAndForget(new UserCommentReplyNotifTemplatingData
                 {
@@ -141,10 +141,10 @@ namespace Confab.Services
             //next, notify admins
             if (approvedByAdmin == null 
                 && newComment.Location.AdminNotifLocal 
-                && (await context.GlobalSettings.SingleAsync()).AdminNotifGlobal
+                && (await dbCtx.GlobalSettings.SingleAsync()).AdminNotifGlobal
                 && newComment.Author.Role != UserRole.Admin)
             {
-                List<UserSchema> admins = await context.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
+                List<UserSchema> admins = await dbCtx.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
 
                 foreach (UserSchema admin in admins)
                 {
@@ -201,18 +201,18 @@ namespace Confab.Services
             }
         }
 
-        private async Task VerifyCommentingEnabled(UserSchema user, CommentLocationSchema location, DataContext context)
+        private async Task VerifyCommentingEnabled(UserSchema user, CommentLocationSchema location, DataContext dbCtx)
         {
             if (user.Role == UserRole.Admin) return;
 
             if (location.LocalStatus != CommentLocationSchema.CommentingStatus.Enabled 
-                || (await context.GlobalSettings.SingleAsync()).CommentingStatus != CommentLocationSchema.CommentingStatus.Enabled)
+                || (await dbCtx.GlobalSettings.SingleAsync()).CommentingStatus != CommentLocationSchema.CommentingStatus.Enabled)
             {
                 throw new CommentingNotEnabledException();
             }
 
             if (RateLimitingEnabled
-                && (await context.Comments
+                && (await dbCtx.Comments
                     .Where(c => c.Author == user)
                     .Where(c => c.CreationTime > DateTime.UtcNow.AddMinutes(-1 * RateLimitingTimeDurationMins))
                     .ToListAsync()).Count >= RateLimitingMaxCommentsPerTimeDuration)
@@ -220,7 +220,7 @@ namespace Confab.Services
                 throw new UserCommentRateLimitException();
             }
 
-            if (ManualModerationEnabled && (await context.Comments
+            if (ManualModerationEnabled && (await dbCtx.Comments
                     .Where(c => c.Author == user)
                     .Where(c => c.AwaitingModeration)
                     .ToListAsync()).Count >= MaxModQueueCommentCountPerUser)
@@ -251,12 +251,12 @@ namespace Confab.Services
             return "c_" + new string(stringChars);
         }
 
-        public async Task<CommentingEnabled> CommentingEnabledAtLocation(CommentLocation commentLocation, ICommentLocationService locationService, HttpContext httpContext, DataContext context)
+        public async Task<CommentingEnabled> CommentingEnabledAtLocation(CommentLocation commentLocation, ICommentLocationService locationService, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema currentUser = await UserService.GetUserFromJWT(httpContext, context);
-            UserService.CheckIfBanned(currentUser, context);
+            UserSchema currentUser = await UserService.GetUserFromJWT(httpContext, dbCtx);
+            UserService.CheckIfBanned(currentUser, dbCtx);
 
-            CommentLocationSchema location = await locationService.GetLocation(context, commentLocation?.Location);
+            CommentLocationSchema location = await locationService.GetLocation(dbCtx, commentLocation?.Location);
             if (location == null)
             {
                 throw new UninitialisedLocationException();
@@ -264,7 +264,7 @@ namespace Confab.Services
 
             try
             {
-                await VerifyCommentingEnabled(currentUser, location, context);
+                await VerifyCommentingEnabled(currentUser, location, dbCtx);
 
                 return new CommentingEnabled { Enabled = true };
             }
@@ -283,15 +283,15 @@ namespace Confab.Services
             }
         }
 
-        public async Task<List<Comment>> GetAtLocation(CommentGetAtLocation commentGetAtLocation, ICommentLocationService locationService, HttpContext httpContext, DataContext context)
+        public async Task<List<Comment>> GetAtLocation(CommentGetAtLocation commentGetAtLocation, ICommentLocationService locationService, HttpContext httpContext, DataContext dbCtx)
         {
             UserSchema currentUser = null;
             try
             {
-                currentUser = await UserService.GetUserFromJWT(httpContext, context);
+                currentUser = await UserService.GetUserFromJWT(httpContext, dbCtx);
             } catch { }
 
-            CommentLocationSchema location = await locationService.GetLocation(context, commentGetAtLocation?.Location);
+            CommentLocationSchema location = await locationService.GetLocation(dbCtx, commentGetAtLocation?.Location);
             if (location == null)
             {
                 throw new UninitialisedLocationException();
@@ -299,12 +299,12 @@ namespace Confab.Services
 
             if((currentUser?.Role) != UserRole.Admin && 
                 (location.LocalStatus == CommentLocationSchema.CommentingStatus.Hidden || 
-                (await context.GlobalSettings.SingleAsync()).CommentingStatus == CommentLocationSchema.CommentingStatus.Hidden))
+                (await dbCtx.GlobalSettings.SingleAsync()).CommentingStatus == CommentLocationSchema.CommentingStatus.Hidden))
             {
                 return new List<Comment>();
             }
 
-            List<CommentSchema> rootCommentsWithChildren = (await context.Comments
+            List<CommentSchema> rootCommentsWithChildren = (await dbCtx.Comments
                 .Include(c => c.Author)
                 .Include(c => c.Location)
                 .Include(c => c.UpvotedUsers)
@@ -317,7 +317,7 @@ namespace Confab.Services
 
             foreach (var rootComment in rootCommentsWithChildren)
             {
-                Comment rootCommentWithRecursiveChildren = await MapCommentsRecursive(context, currentUser, rootComment);
+                Comment rootCommentWithRecursiveChildren = await MapCommentsRecursive(dbCtx, currentUser, rootComment);
                 
                 if(rootCommentWithRecursiveChildren != null)
                 {
@@ -344,7 +344,7 @@ namespace Confab.Services
             return commentsFormatted;
         }
 
-        private static async Task<Comment> MapCommentsRecursive(DataContext context, UserSchema currentUser, CommentSchema comment)
+        private static async Task<Comment> MapCommentsRecursive(DataContext dbCtx, UserSchema currentUser, CommentSchema comment)
         {
             Comment commentFormatted = null;
 
@@ -390,7 +390,7 @@ namespace Confab.Services
             {
                 foreach (var childComment in comment.ChildComments)
                 {
-                    CommentSchema nestedChild = (await context.Comments
+                    CommentSchema nestedChild = (await dbCtx.Comments
                     .Include(c => c.Author)
                     .Include(c => c.Location)
                     .Include(c => c.UpvotedUsers)
@@ -398,7 +398,7 @@ namespace Confab.Services
                     .Include(c => c.ChildComments)
                     .SingleOrDefaultAsync(c => c.Id.Equals(childComment.Id)));
 
-                    Comment childCommentFormatted = await MapCommentsRecursive(context, currentUser, nestedChild);
+                    Comment childCommentFormatted = await MapCommentsRecursive(dbCtx, currentUser, nestedChild);
                     
                     if(childCommentFormatted != null)
                     {
@@ -437,9 +437,9 @@ namespace Confab.Services
             }
         }
 
-        public async Task Vote(CommentVote commentVote, HttpContext httpContext, DataContext context)
+        public async Task Vote(CommentVote commentVote, HttpContext httpContext, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments
+            CommentSchema comment = await dbCtx.Comments
                 .Include(c => c.Location)
                 .Include(c => c.UpvotedUsers)
                 .Include(c => c.DownvotedUsers)
@@ -452,16 +452,16 @@ namespace Confab.Services
 
             if (comment.AwaitingModeration) throw new CommentAwaitingModerationException();
 
-            UserSchema user = await UserService.GetUserFromJWT(httpContext, context);
+            UserSchema user = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
-            if ((!comment.Location.LocalVotingEnabled || !(await context.GlobalSettings.SingleAsync()).VotingEnabled) && user.Role != UserRole.Admin)
+            if ((!comment.Location.LocalVotingEnabled || !(await dbCtx.GlobalSettings.SingleAsync()).VotingEnabled) && user.Role != UserRole.Admin)
             {
                 throw new VotingNotEnabledException();
             }
@@ -486,13 +486,13 @@ namespace Confab.Services
                 throw new InvalidCommentVoteException();
             }
 
-            context.Comments.Update(comment);
-            await context.SaveChangesAsync();
+            dbCtx.Comments.Update(comment);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task Edit(CommentEdit commentEdit, HttpContext httpContext, IEmailService emailService, DataContext context)
+        public async Task Edit(CommentEdit commentEdit, HttpContext httpContext, IEmailService emailService, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments
+            CommentSchema comment = await dbCtx.Comments
                 .Include(c => c.Location)
                 .Include(c => c.Author)
                 .Include(c => c.UpvotedUsers)
@@ -506,14 +506,14 @@ namespace Confab.Services
 
             if (!CommentEditAllowed(comment)) throw new CommentNotEditableException();
 
-            UserSchema user = await UserService.GetUserFromJWT(httpContext, context);
+            UserSchema user = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             if (comment.Author != user)
             {
@@ -534,27 +534,27 @@ namespace Confab.Services
             comment.Content = commentEdit.NewContent;
             comment.EditTime = DateTime.UtcNow;
 
-            (bool approved, string feedback) automod = await ValidateWithAutoModRules(comment, emailService, context, isEdit: true);
+            (bool approved, string feedback) automod = await ValidateWithAutoModRules(comment, emailService, dbCtx, isEdit: true);
             if (!automod.approved)
             {
                 throw new AutoModerationFailedException(automod.feedback);
             }
 
-            context.CommentEdits.Add(newCommentEdit);
-            context.Comments.Update(comment);
-            await context.SaveChangesAsync();
+            dbCtx.CommentEdits.Add(newCommentEdit);
+            dbCtx.Comments.Update(comment);
+            await dbCtx.SaveChangesAsync();
 
-            await HandleNewEditNotifications(comment, editPreviousContent, emailService, context);
+            await HandleNewEditNotifications(comment, editPreviousContent, emailService, dbCtx);
         }
 
-        private async Task HandleNewEditNotifications(CommentSchema comment, string editPreviousContent, IEmailService emailService, DataContext context)
+        private async Task HandleNewEditNotifications(CommentSchema comment, string editPreviousContent, IEmailService emailService, DataContext dbCtx)
         {
             if (!comment.AwaitingModeration
                 && comment.Location.AdminNotifEditLocal
-                && (await context.GlobalSettings.SingleAsync()).AdminNotifEditGlobal
+                && (await dbCtx.GlobalSettings.SingleAsync()).AdminNotifEditGlobal
                 && comment.Author.Role != UserRole.Admin)
             {
-                List<UserSchema> admins = await context.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
+                List<UserSchema> admins = await dbCtx.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
 
                 foreach (UserSchema admin in admins)
                 {
@@ -579,9 +579,9 @@ namespace Confab.Services
             }
         }
 
-        public async Task Delete(CommentId commentId, HttpContext httpContext, DataContext context)
+        public async Task Delete(CommentId commentId, HttpContext httpContext, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments.SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
+            CommentSchema comment = await dbCtx.Comments.SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
 
             if (comment == null)
             {
@@ -590,14 +590,14 @@ namespace Confab.Services
 
             if (comment.AwaitingModeration) throw new CommentAwaitingModerationException();
 
-            UserSchema user = await UserService.GetUserFromJWT(httpContext, context);
+            UserSchema user = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             if (comment.Author != user && user.Role != UserRole.Admin)
             {
@@ -605,13 +605,13 @@ namespace Confab.Services
             }
 
             comment.IsDeleted = true;
-            context.Comments.Update(comment);
-            await context.SaveChangesAsync();
+            dbCtx.Comments.Update(comment);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task PermanentlyDelete(CommentId commentId, HttpContext httpContext, DataContext context)
+        public async Task PermanentlyDelete(CommentId commentId, HttpContext httpContext, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments
+            CommentSchema comment = await dbCtx.Comments
                 .Include(c => c.ChildComments)
                 .SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
 
@@ -620,32 +620,32 @@ namespace Confab.Services
                 throw new InvalidCommentIdException();
             }
 
-            await PermanentlyDeleteCommentTree(new List<CommentSchema> { comment }, context);
+            await PermanentlyDeleteCommentTree(new List<CommentSchema> { comment }, dbCtx);
         }
 
-        public async Task DeleteUserContent(UserPublicId userPublicId, HttpContext httpContext, DataContext context)
+        public async Task DeleteUserContent(UserPublicId userPublicId, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema currentUser = await UserService.GetUserFromJWT(httpContext, context);
+            UserSchema currentUser = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
-            UserSchema userDeletionRequested = await context.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userPublicId.Id));
+            UserSchema userDeletionRequested = await dbCtx.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userPublicId.Id));
 
             if (currentUser == null || userDeletionRequested == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(currentUser, context);
+            UserService.CheckIfBanned(currentUser, dbCtx);
 
             if (currentUser.Role != UserRole.Admin)
             {
                 throw new InvalidAuthorizationException();
             }
 
-            await _DeleteUserContent(userDeletionRequested, context);
+            await _DeleteUserContent(userDeletionRequested, dbCtx);
         }
 
-        private async Task _DeleteUserContent(UserSchema deleteUser, DataContext context) {
-            List<CommentSchema> allUserComments = (await context.Comments
+        private async Task _DeleteUserContent(UserSchema deleteUser, DataContext dbCtx) {
+            List<CommentSchema> allUserComments = (await dbCtx.Comments
                 .Where(c => c.Author == deleteUser)
                 .Where(c => !c.AwaitingModeration)
                 .ToListAsync());
@@ -653,21 +653,21 @@ namespace Confab.Services
             foreach (CommentSchema comment in allUserComments)
             {
                 comment.IsDeleted = true;
-                context.Comments.Update(comment);
+                dbCtx.Comments.Update(comment);
             }
 
-            await context.SaveChangesAsync();
+            await dbCtx.SaveChangesAsync();
 
-            await PermanentlyDeleteCommentTree(await context.Comments
+            await PermanentlyDeleteCommentTree(await dbCtx.Comments
                 .Include(c => c.ChildComments)
                 .Where(c => c.Author == deleteUser)
                 .Where(c => c.AwaitingModeration)
-                .ToListAsync(), context);
+                .ToListAsync(), dbCtx);
         }
 
-        public async Task Undelete(CommentId commentId, HttpContext httpContext, DataContext context)
+        public async Task Undelete(CommentId commentId, HttpContext httpContext, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments.SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
+            CommentSchema comment = await dbCtx.Comments.SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
 
             if (comment == null)
             {
@@ -676,14 +676,14 @@ namespace Confab.Services
 
             if (comment.AwaitingModeration) throw new CommentAwaitingModerationException();
 
-            UserSchema user = await UserService.GetUserFromJWT(httpContext, context);
+            UserSchema user = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             if (user.Role != UserRole.Admin)
             { 
@@ -691,14 +691,14 @@ namespace Confab.Services
             }
 
             comment.IsDeleted = false;
-            context.Comments.Update(comment);
-            await context.SaveChangesAsync();
+            dbCtx.Comments.Update(comment);
+            await dbCtx.SaveChangesAsync();
         }
 
 
-        public async Task<List<CommentHistoryItem>> GetCommentHistory(CommentId commentId, HttpContext httpContext, DataContext context)
+        public async Task<List<CommentHistoryItem>> GetCommentHistory(CommentId commentId, HttpContext httpContext, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments.SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
+            CommentSchema comment = await dbCtx.Comments.SingleOrDefaultAsync(c => c.PublicId == commentId.Id);
 
             if (comment == null)
             {
@@ -708,7 +708,7 @@ namespace Confab.Services
             UserSchema user = null;
             try
             {
-                user = await UserService.GetUserFromJWT(httpContext, context);
+                user = await UserService.GetUserFromJWT(httpContext, dbCtx);
             }
             catch {}
 
@@ -719,7 +719,7 @@ namespace Confab.Services
 
             List<CommentEditSchema> commentEdits;
 
-            commentEdits = await context.CommentEdits
+            commentEdits = await dbCtx.CommentEdits
             .Where(e => e.SourceComment == comment)
             .ToListAsync();
 
@@ -750,9 +750,9 @@ namespace Confab.Services
             return commentEditsFormatted;
         }
 
-        public async Task ModerationActionCommentAccept(HttpContext httpContext, CommentId commentId, IEmailService emailService, DataContext context)
+        public async Task ModerationActionCommentAccept(HttpContext httpContext, CommentId commentId, IEmailService emailService, DataContext dbCtx)
         {
-            CommentSchema comment = await context.Comments
+            CommentSchema comment = await dbCtx.Comments
                 .Include(c => c.ParentComment)
                 .Include(c => c.ParentComment.ChildComments)
                 .Include(c => c.ParentComment.Author)
@@ -767,84 +767,84 @@ namespace Confab.Services
                 throw new InvalidCommentIdException();
             }
 
-            UserSchema admin = await UserService.GetUserFromJWT(httpContext, context);
-            UserService.CheckIfBanned(admin, context);
+            UserSchema admin = await UserService.GetUserFromJWT(httpContext, dbCtx);
+            UserService.CheckIfBanned(admin, dbCtx);
 
             comment.AwaitingModeration = false;
             comment.ModeratorApprovalTimestamp = DateTime.UtcNow;
 
-            GlobalSettingsSchema globalSettings = await context.GlobalSettings.SingleAsync();
+            GlobalSettingsSchema globalSettings = await dbCtx.GlobalSettings.SingleAsync();
             globalSettings.ModQueueLastCheckedTimestamp = DateTime.UtcNow;
             EmailService.ModQueueReminderSchedule.Reset();
 
-            context.GlobalSettings.Update(globalSettings);
-            context.Comments.Update(comment);
-            await context.SaveChangesAsync();
+            dbCtx.GlobalSettings.Update(globalSettings);
+            dbCtx.Comments.Update(comment);
+            await dbCtx.SaveChangesAsync();
 
-            await HandleNewCommentNotifications(comment, emailService, context, approvedByAdmin: admin);
+            await HandleNewCommentNotifications(comment, emailService, dbCtx, approvedByAdmin: admin);
         }
 
-        public async Task ModerationActionPermanentlyDeleteAllAwaitingApproval(UserPublicId userId, DataContext context)
+        public async Task ModerationActionPermanentlyDeleteAllAwaitingApproval(UserPublicId userId, DataContext dbCtx)
         {
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userId.Id));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userId.Id));
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            List<CommentSchema> awaitingComments = await context.Comments
+            List<CommentSchema> awaitingComments = await dbCtx.Comments
                 .Include(c => c.ChildComments)
                 .Where(c => c.Author == user)
                 .Where(c => c.AwaitingModeration)
                 .ToListAsync();
 
-            await PermanentlyDeleteCommentTree(awaitingComments, context);
+            await PermanentlyDeleteCommentTree(awaitingComments, dbCtx);
         }
 
-        private async Task PermanentlyDeleteCommentTree(List<CommentSchema> comments, DataContext context)
+        private async Task PermanentlyDeleteCommentTree(List<CommentSchema> comments, DataContext dbCtx)
         {
             List<CommentSchema> allCommentsInTree = new List<CommentSchema>();
 
             foreach (CommentSchema comment in comments)
             {
-                allCommentsInTree.AddRange(await GetCommentTreeRecursive(comment, context));
+                allCommentsInTree.AddRange(await GetCommentTreeRecursive(comment, dbCtx));
             }
 
             List<CommentEditSchema> commentEdits = new List<CommentEditSchema>();
             foreach (CommentSchema comment in allCommentsInTree)
             {
-                commentEdits.AddRange(await context.CommentEdits.Where(e => e.SourceComment == comment).ToListAsync());
+                commentEdits.AddRange(await dbCtx.CommentEdits.Where(e => e.SourceComment == comment).ToListAsync());
             }
 
-            context.Comments.RemoveRange(allCommentsInTree);
-            context.CommentEdits.RemoveRange(commentEdits);
-            await context.SaveChangesAsync();
+            dbCtx.Comments.RemoveRange(allCommentsInTree);
+            dbCtx.CommentEdits.RemoveRange(commentEdits);
+            await dbCtx.SaveChangesAsync();
         }
 
-        private async Task<List<CommentSchema>> GetCommentTreeRecursive(CommentSchema comment, DataContext context)
+        private async Task<List<CommentSchema>> GetCommentTreeRecursive(CommentSchema comment, DataContext dbCtx)
         {
             List<CommentSchema> commentList = new List<CommentSchema> { comment };
 
             foreach (CommentSchema childComment in comment.ChildComments)
             {
-                CommentSchema nestedChild = (await context.Comments
+                CommentSchema nestedChild = (await dbCtx.Comments
                 .Include(c => c.ChildComments)
                 .SingleOrDefaultAsync(c => c.Id.Equals(childComment.Id)));
 
-                commentList.AddRange(await GetCommentTreeRecursive(nestedChild, context));
+                commentList.AddRange(await GetCommentTreeRecursive(nestedChild, dbCtx));
             }
 
             return commentList;
         }
 
-        public async Task<List<ModQueueAtLocation>> GetModerationQueue(DataContext context)
+        public async Task<List<ModQueueAtLocation>> GetModerationQueue(DataContext dbCtx)
         {
             Dictionary<string, ModQueueAtLocation> modQueue = new Dictionary<string, ModQueueAtLocation>();
 
             //List<ModQueueAtLocation> modQueue = new List<ModQueueAtLocation>();
 
-            List<CommentSchema> awaitingComments = await context.Comments
+            List<CommentSchema> awaitingComments = await dbCtx.Comments
                 .Include(c => c.Location)
                 .Include(c => c.Author)
                 .Include(c => c.ParentComment)
@@ -881,25 +881,25 @@ namespace Confab.Services
             return modQueue.Values.ToList();
         }
 
-        public async Task<Statistics> GetStats(DataContext context)
+        public async Task<Statistics> GetStats(DataContext dbCtx)
         {
             Statistics stats = new Statistics();
-            stats.TotalComments = (await context.Comments.ToListAsync()).Count;
-            stats.NewComments_24h = (await context.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddHours(-24)).ToListAsync()).Count;
-            stats.NewComments_7d = (await context.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddDays(-7)).ToListAsync()).Count;
-            stats.NewComments_30d = (await context.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddDays(-30)).ToListAsync()).Count;
-            stats.NewComments_1y = (await context.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddYears(-1)).ToListAsync()).Count;
+            stats.TotalComments = (await dbCtx.Comments.ToListAsync()).Count;
+            stats.NewComments_24h = (await dbCtx.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddHours(-24)).ToListAsync()).Count;
+            stats.NewComments_7d = (await dbCtx.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddDays(-7)).ToListAsync()).Count;
+            stats.NewComments_30d = (await dbCtx.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddDays(-30)).ToListAsync()).Count;
+            stats.NewComments_1y = (await dbCtx.Comments.Where(c => c.CreationTime > DateTime.UtcNow.AddYears(-1)).ToListAsync()).Count;
 
             return stats;
         }
 
-        public async Task<(bool Success, string UserFeedback)> ValidateWithAutoModRules(CommentSchema comment, IEmailService emailService, DataContext context, bool isEdit = false)
+        public async Task<(bool Success, string UserFeedback)> ValidateWithAutoModRules(CommentSchema comment, IEmailService emailService, DataContext dbCtx, bool isEdit = false)
         {
             (bool Success, string UserFeedback) returnVal = (true, null);
 
             if (comment.Author.Role != UserRole.Admin)
             {
-                List<AutoModerationRuleSchema> rules = await context.AutoModerationRules.OrderBy(r => r.Id).ToListAsync();
+                List<AutoModerationRuleSchema> rules = await dbCtx.AutoModerationRules.OrderBy(r => r.Id).ToListAsync();
 
                 foreach (AutoModerationRuleSchema rule in rules)
                 {
@@ -918,11 +918,11 @@ namespace Confab.Services
                             case AutoModerationAction.BanAndDeleteAll:
                                 returnVal = (false, null);
                                 comment.Author.IsBanned = true;
-                                context.Users.Update(comment.Author);
-                                await context.SaveChangesAsync();
+                                dbCtx.Users.Update(comment.Author);
+                                await dbCtx.SaveChangesAsync();
 
                                 if (rule.MatchAction == AutoModerationAction.BanAndDeleteAll)
-                                    await _DeleteUserContent(comment.Author, context);
+                                    await _DeleteUserContent(comment.Author, dbCtx);
 
                                 ruleEvaluated = true;
                                 break;
@@ -938,7 +938,7 @@ namespace Confab.Services
 
                         if (rule.NotifyAdmins || rule.MatchAction == AutoModerationAction.Notify)
                         {
-                            foreach (UserSchema admin in await context.Users.Where(u => u.Role == UserRole.Admin).ToListAsync())
+                            foreach (UserSchema admin in await dbCtx.Users.Where(u => u.Role == UserRole.Admin).ToListAsync())
                             {
                                 emailService.SendEmailFireAndForget(new AdminAutoModNotifTemplatingData
                                 {

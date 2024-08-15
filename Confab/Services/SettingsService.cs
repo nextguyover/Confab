@@ -18,9 +18,9 @@ namespace Confab.Services
 {
     public class SettingsService: ISettingsService
     {
-        public async Task<GlobalCommentSettings> GetGlobalCommentSettings(DataContext context)
+        public async Task<GlobalCommentSettings> GetGlobalCommentSettings(DataContext dbCtx)
         {
-            GlobalSettingsSchema settingsObj = await context.GlobalSettings.SingleAsync();
+            GlobalSettingsSchema settingsObj = await dbCtx.GlobalSettings.SingleAsync();
 
             return new GlobalCommentSettings
             {
@@ -31,22 +31,22 @@ namespace Confab.Services
             };
         }
 
-        public async Task SetGlobalCommentSettings(DataContext context, GlobalCommentSettings newSettings)
+        public async Task SetGlobalCommentSettings(DataContext dbCtx, GlobalCommentSettings newSettings)
         {
-            GlobalSettingsSchema settingsObj = await context.GlobalSettings.SingleAsync();
+            GlobalSettingsSchema settingsObj = await dbCtx.GlobalSettings.SingleAsync();
 
             settingsObj.CommentingStatus = newSettings.CommentingStatus ?? settingsObj.CommentingStatus;
             settingsObj.VotingEnabled = newSettings.VotingEnabled ?? settingsObj.VotingEnabled;
             settingsObj.AccountCreationEnabled = newSettings.AccountCreationEnabled ?? settingsObj.AccountCreationEnabled;
             settingsObj.AccountLoginEnabled = newSettings.AccountLoginEnabled ?? settingsObj.AccountLoginEnabled;
 
-            context.GlobalSettings.Update(settingsObj);
-            await context.SaveChangesAsync();
+            dbCtx.GlobalSettings.Update(settingsObj);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task<LocalCommentSettings> GetLocalCommentSettings(ICommentLocationService locationService, CommentLocation commentLocation, DataContext context)
+        public async Task<LocalCommentSettings> GetLocalCommentSettings(ICommentLocationService locationService, CommentLocation commentLocation, DataContext dbCtx)
         {
-            CommentLocationSchema locationObj = await locationService.GetLocation(context, commentLocation?.Location);
+            CommentLocationSchema locationObj = await locationService.GetLocation(dbCtx, commentLocation?.Location);
 
             return new LocalCommentSettings
             {
@@ -56,42 +56,42 @@ namespace Confab.Services
             };
         }
 
-        public async Task SetLocalCommentSettings(SetLocalCommentSettings newSettings, ICommentLocationService locationService, DataContext context)
+        public async Task SetLocalCommentSettings(SetLocalCommentSettings newSettings, ICommentLocationService locationService, DataContext dbCtx)
         {
-            CommentLocationSchema locationObj = await locationService.GetLocation(context, newSettings?.Location);
+            CommentLocationSchema locationObj = await locationService.GetLocation(dbCtx, newSettings?.Location);
             if (locationObj == null)
             {
-                locationObj = await locationService.CreateNewLocation(context, newSettings.Location);
+                locationObj = await locationService.CreateNewLocation(dbCtx, newSettings.Location);
             } 
             
             locationObj.LocalStatus = newSettings.CommentingStatus ?? locationObj.LocalStatus;
             locationObj.LocalVotingEnabled = newSettings.VotingStatus ?? locationObj.LocalVotingEnabled;
             locationObj.LocalEditingEnabled = newSettings.EditingStatus ?? locationObj.LocalEditingEnabled;
 
-            context.Update(locationObj);
-            await context.SaveChangesAsync();
+            dbCtx.Update(locationObj);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task SignOutAllUsers(DataContext context)
+        public async Task SignOutAllUsers(DataContext dbCtx)
         {
-            GlobalSettingsSchema settingsObj = await context.GlobalSettings.SingleAsync();
+            GlobalSettingsSchema settingsObj = await dbCtx.GlobalSettings.SingleAsync();
 
             settingsObj.UserAuthJwtValidityStart = DateTime.UtcNow;
 
-            context.GlobalSettings.Update(settingsObj);
-            await context.SaveChangesAsync();
+            dbCtx.GlobalSettings.Update(settingsObj);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task<EmailSettings> GetEmailSettings(CommentLocation locationData, ICommentLocationService locationService, DataContext context)
+        public async Task<EmailSettings> GetEmailSettings(CommentLocation locationData, ICommentLocationService locationService, DataContext dbCtx)
         {
             CommentLocationSchema locationObj = null;
             try
             {
-                locationObj = await locationService.GetLocation(context, locationData?.Location);
+                locationObj = await locationService.GetLocation(dbCtx, locationData?.Location);
             }
             catch {}
 
-            GlobalSettingsSchema globalSettings = await context.GlobalSettings.SingleAsync();
+            GlobalSettingsSchema globalSettings = await dbCtx.GlobalSettings.SingleAsync();
 
             return new EmailSettings
             {
@@ -104,12 +104,12 @@ namespace Confab.Services
             };
         }
 
-        public async Task SetEmailSettings(EmailSettings newSettings, ICommentLocationService locationService, DataContext context)
+        public async Task SetEmailSettings(EmailSettings newSettings, ICommentLocationService locationService, DataContext dbCtx)
         {
             CommentLocationSchema locationObj = null;
             try
             {
-                locationObj = await locationService.GetLocation(context, newSettings?.Location);
+                locationObj = await locationService.GetLocation(dbCtx, newSettings?.Location);
             }
             catch { }
 
@@ -118,7 +118,7 @@ namespace Confab.Services
                 throw new UninitialisedLocationException();
             }
 
-            GlobalSettingsSchema globalSettings = await context.GlobalSettings.SingleAsync();
+            GlobalSettingsSchema globalSettings = await dbCtx.GlobalSettings.SingleAsync();
 
             if (locationObj != null)
             {
@@ -126,15 +126,15 @@ namespace Confab.Services
                 locationObj.AdminNotifEditLocal = newSettings.AdminNotifEditLocal ?? locationObj.AdminNotifEditLocal;
                 locationObj.UserNotifLocal = newSettings.UserNotifLocal ?? locationObj.UserNotifLocal;
 
-                context.CommentLocations.Update(locationObj);
+                dbCtx.CommentLocations.Update(locationObj);
             }
             globalSettings.AdminNotifGlobal = newSettings.AdminNotifGlobal ?? globalSettings.AdminNotifGlobal;
             globalSettings.AdminNotifEditGlobal = newSettings.AdminNotifEditGlobal ?? globalSettings.AdminNotifEditGlobal;
             globalSettings.UserNotifGlobal = newSettings.UserNotifGlobal ?? globalSettings.UserNotifGlobal;
 
-            context.GlobalSettings.Update(globalSettings);
+            dbCtx.GlobalSettings.Update(globalSettings);
 
-            await context.SaveChangesAsync();
+            await dbCtx.SaveChangesAsync();
         }
     }
 }

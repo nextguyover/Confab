@@ -5,7 +5,7 @@ namespace Confab.Services.Interfaces
 {
     public interface IAutoModerationService
     {
-        Task<List<ModerationRule>> GetModerationRules(DataContext context);
-        Task SetModerationRules(DataContext context, List<ModerationRule> newRules);
+        Task<List<ModerationRule>> GetModerationRules(DataContext dbCtx);
+        Task SetModerationRules(DataContext dbCtx, List<ModerationRule> newRules);
     }
 }

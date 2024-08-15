@@ -37,33 +37,33 @@ namespace Confab.Services
         private static ILogger _logger;
         public static ILogger logger { set { _logger = value; } }
 
-        public static async Task UpdateLastActive(UserSchema author, DataContext context)
+        public static async Task UpdateLastActive(UserSchema author, DataContext dbCtx)
         {
             author.LastActive = DateTime.UtcNow;
-            context.Users.Update(author);
-            await context.SaveChangesAsync();
+            dbCtx.Users.Update(author);
+            await dbCtx.SaveChangesAsync();
         }
-        public static async Task<UserSchema> GetUserFromJWT(HttpContext httpContext, DataContext context)
+        public static async Task<UserSchema> GetUserFromJWT(HttpContext httpContext, DataContext dbCtx)
         {
-            string userEmail = AuthClaims.Claims.GetClaim(httpContext, (await context.GlobalSettings.SingleAsync()).UserAuthJwtValidityStart, AuthClaims.Claims.Email);
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.Email.Equals(userEmail));
+            string userEmail = AuthClaims.Claims.GetClaim(httpContext, (await dbCtx.GlobalSettings.SingleAsync()).UserAuthJwtValidityStart, AuthClaims.Claims.Email);
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userEmail));
 
             if(user != null)
-                await UpdateLastActive(user, context);
+                await UpdateLastActive(user, dbCtx);
 
             return user;
         }
 
-        public async Task SendVerificationCode(UserLogin userLogin, IEmailService emailService, ICommentLocationService locationService, DataContext context, bool isDevelopment)
+        public async Task SendVerificationCode(UserLogin userLogin, IEmailService emailService, ICommentLocationService locationService, DataContext dbCtx, bool isDevelopment)
         {
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             CommentLocationSchema parsedLocation = null;
             try
             {
-                parsedLocation = await locationService.GetLocation(context, userLogin?.Location);
+                parsedLocation = await locationService.GetLocation(dbCtx, userLogin?.Location);
             }
             catch { }
 
@@ -76,14 +76,14 @@ namespace Confab.Services
 
             if(user == null)    //if user doesn't exist, create user record
             {
-                if(!(await context.GlobalSettings.SingleAsync()).AccountCreationEnabled)
+                if(!(await dbCtx.GlobalSettings.SingleAsync()).AccountCreationEnabled)
                 {
                     throw new AccountCreationDisabledException();
                 }
-                user = await CreateNewUser(context, UserRole.Standard, userLogin.Email);
+                user = await CreateNewUser(dbCtx, UserRole.Standard, userLogin.Email);
             }
 
-            await VerifyUserLoginEnabled(user, context);
+            await VerifyUserLoginEnabled(user, dbCtx);
 
             //check whether a verification code has been sent recently
             if(user.VerificationExpiry > DateTime.UtcNow)
@@ -130,8 +130,8 @@ namespace Confab.Services
                 }
                 user.VerificationCodeEmailCount += 1;
 
-                context.Users.Update(user);
-                await context.SaveChangesAsync();
+                dbCtx.Users.Update(user);
+                await dbCtx.SaveChangesAsync();
             }
             else
             {
@@ -140,16 +140,16 @@ namespace Confab.Services
                     user.VerificationExpiry = DateTime.MinValue;
                 }
 
-                context.Users.Update(user);
-                await context.SaveChangesAsync();
+                dbCtx.Users.Update(user);
+                await dbCtx.SaveChangesAsync();
 
                 throw new EmailSendErrorException();
             }
         }
 
-        public async Task<UserSchema> CreateNewUser(DataContext context, UserRole role, string email)
+        public async Task<UserSchema> CreateNewUser(DataContext dbCtx, UserRole role, string email)
         {
-            if(MaxNewSignups != -1 && await context.Users.Where(u => 
+            if(MaxNewSignups != -1 && await dbCtx.Users.Where(u => 
                 u.RecordCreation > DateTime.UtcNow.AddMinutes(MaxNewSignupsDurationMinutes * -1) &&
                 u.AccountCreation == DateTime.MinValue  // only count new sign ups that haven't logged in yet
             ).CountAsync() >= MaxNewSignups)
@@ -170,8 +170,8 @@ namespace Confab.Services
             
             user.PublicId = GenerateUserId();
 
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
+            dbCtx.Users.Add(user);
+            await dbCtx.SaveChangesAsync();
 
             return user;
         }
@@ -209,25 +209,25 @@ namespace Confab.Services
             }
         }
 
-        public async Task<LoginResponse> Login(UserLogin userLogin, DataContext context)
+        public async Task<LoginResponse> Login(UserLogin userLogin, DataContext dbCtx)
         {
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
 
             if (user == null)    //if user doesn't exist, can't login
             {
                 throw new UserNotFoundException();
             }
 
-            await VerifyUserLoginEnabled(user, context);
+            await VerifyUserLoginEnabled(user, dbCtx);
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             if(user.VerificationExpiry < DateTime.UtcNow || user.VerificationCodeAttempts >= MaxVerificationCodeAttempts)
             {
                 user.VerificationCodeAttempts += 1;
                 user.VerificationExpiry = DateTime.MinValue;
-                context.Users.Update(user);
-                await context.SaveChangesAsync();
+                dbCtx.Users.Update(user);
+                await dbCtx.SaveChangesAsync();
                 throw new UserLoginVerificationCodeExpiredException();
             }
 
@@ -245,8 +245,8 @@ namespace Confab.Services
                     user.AccountCreation = DateTime.UtcNow;
                 }
 
-                context.Users.Update(user);
-                await context.SaveChangesAsync();
+                dbCtx.Users.Update(user);
+                await dbCtx.SaveChangesAsync();
 
                 var claims = new[]
                 {
@@ -278,44 +278,44 @@ namespace Confab.Services
             else
             {
                 user.VerificationCodeAttempts += 1;
-                context.Users.Update(user);
-                await context.SaveChangesAsync();
+                dbCtx.Users.Update(user);
+                await dbCtx.SaveChangesAsync();
                 throw new UserLoginFailedException();
             }
         }
 
-        private async Task VerifyUserLoginEnabled(UserSchema user, DataContext context)
+        private async Task VerifyUserLoginEnabled(UserSchema user, DataContext dbCtx)
         {
-            if(user.Role != UserRole.Admin && !(await context.GlobalSettings.SingleAsync()).AccountLoginEnabled)
+            if(user.Role != UserRole.Admin && !(await dbCtx.GlobalSettings.SingleAsync()).AccountLoginEnabled)
             {
                 throw new UserLoginDisabledException();
             }
         }
 
-        public async Task<bool> GetChangeUsernameAvailable(HttpContext httpContext, DataContext context)
+        public async Task<bool> GetChangeUsernameAvailable(HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema user = await GetUserFromJWT(httpContext, context);       //TODO: do authorisation in program.cs with a single function
+            UserSchema user = await GetUserFromJWT(httpContext, dbCtx);       //TODO: do authorisation in program.cs with a single function
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             return CustomUsernamesEnabled || user.Role == UserRole.Admin;
         }
 
-        public async Task ChangeUsername(UsernameChange usernameChange, HttpContext httpContext, DataContext context)
+        public async Task ChangeUsername(UsernameChange usernameChange, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema user = await GetUserFromJWT(httpContext, context);
+            UserSchema user = await GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             if(!CustomUsernamesEnabled && user.Role != UserRole.Admin)
             {
@@ -328,7 +328,7 @@ namespace Confab.Services
             }
             else
             {
-                await ValidateUsername(user, usernameChange.NewUsername, context);
+                await ValidateUsername(user, usernameChange.NewUsername, dbCtx);
             }
 
             if(user.Role != UserRole.Admin && user.LastUsernameChange.AddMinutes(UsernameChangeCooldownTimeMins) > DateTime.UtcNow)
@@ -339,27 +339,27 @@ namespace Confab.Services
             user.LastUsernameChange = DateTime.UtcNow;
 
             user.Username = usernameChange.NewUsername;
-            context.Users.Update(user);
-            await context.SaveChangesAsync();
+            dbCtx.Users.Update(user);
+            await dbCtx.SaveChangesAsync();
         }
 
-        private async Task ValidateUsername(UserSchema user, string username, DataContext context)
+        private async Task ValidateUsername(UserSchema user, string username, DataContext dbCtx)
         {
             if (user.Role == UserRole.Admin) return;
 
             if (username.Length < 2 || username.Length > 15 || !Regex.Match(username, "^[a-zA-Z0-9_]+$").Success)            //username can be empty (starts using anonymous username again)
                 throw new InvalidUsernameException();
 
-            if (await context.Users.AnyAsync(u => u.Username == username && u != user))
+            if (await dbCtx.Users.AnyAsync(u => u.Username == username && u != user))
                 throw new UsernameUnavailableException();
 
             if(username.ToLower() == "anonymous")
                 throw new UsernameUnavailableException();
         }
 
-        public async Task<bool> UserIdExists(string publicUserId, DataContext context)
+        public async Task<bool> UserIdExists(string publicUserId, DataContext dbCtx)
         {
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(publicUserId));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(publicUserId));
 
             return user != null;
         }
@@ -385,16 +385,16 @@ namespace Confab.Services
             return word.Substring(0, 1).ToUpper() + word.Substring(1).ToLower();
         }
 
-        public async Task<User> GetCurrentUser(HttpContext httpContext, DataContext context)
+        public async Task<User> GetCurrentUser(HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema user = await GetUserFromJWT(httpContext, context);
+            UserSchema user = await GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             User userToReturn = userSchemaToUser(user);
             if(!CustomUsernamesEnabled && user.Role != UserRole.Admin)
@@ -405,9 +405,9 @@ namespace Confab.Services
             return userToReturn;
         }
 
-        public async Task<bool> IsAdmin(HttpContext httpContext, DataContext context)
+        public async Task<bool> IsAdmin(HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema user = await GetUserFromJWT(httpContext, context);
+            UserSchema user = await GetUserFromJWT(httpContext, dbCtx);
 
             if (user == null)
             {
@@ -417,18 +417,18 @@ namespace Confab.Services
             return user.Role == UserRole.Admin;
         }
 
-        public async Task BanUser(UserPublicId userPublicId, HttpContext httpContext, DataContext context)
+        public async Task BanUser(UserPublicId userPublicId, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema currentUser = await GetUserFromJWT(httpContext, context);
+            UserSchema currentUser = await GetUserFromJWT(httpContext, dbCtx);
 
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userPublicId.Id));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userPublicId.Id));
 
             if (user == null || currentUser == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(currentUser, context);
+            UserService.CheckIfBanned(currentUser, dbCtx);
 
             if (user == currentUser)    //prevent admin banning themselves
             {
@@ -436,68 +436,68 @@ namespace Confab.Services
             }
 
             user.IsBanned = true; 
-            context.Users.Update(user);
-            await context.SaveChangesAsync();
+            dbCtx.Users.Update(user);
+            await dbCtx.SaveChangesAsync();
         }
-        public async Task UnBanUser(UserPublicId userPublicId, HttpContext httpContext, DataContext context)
+        public async Task UnBanUser(UserPublicId userPublicId, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema currentUser = await GetUserFromJWT(httpContext, context);
+            UserSchema currentUser = await GetUserFromJWT(httpContext, dbCtx);
 
-            UserSchema user = await context.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userPublicId.Id));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.PublicId.Equals(userPublicId.Id));
 
             if (user == null || currentUser == null)
             {
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(currentUser, context);
+            UserService.CheckIfBanned(currentUser, dbCtx);
 
             user.IsBanned = false;
-            context.Users.Update(user);
-            await context.SaveChangesAsync();
+            dbCtx.Users.Update(user);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task<UserReplyNotifications> GetReplyNotifications(HttpContext httpContext, DataContext context)
+        public async Task<UserReplyNotifications> GetReplyNotifications(HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema user = await GetUserFromJWT(httpContext, context);
+            UserSchema user = await GetUserFromJWT(httpContext, dbCtx);
             if (user == null) 
             {
                 throw new UserNotFoundException();
             }
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             return new UserReplyNotifications
             {
                 Enabled = user.ReplyNotificationsEnabled
             };
         }
-        public async Task SetReplyNotifications(UserReplyNotifications newData, HttpContext httpContext, DataContext context)
+        public async Task SetReplyNotifications(UserReplyNotifications newData, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema user = await GetUserFromJWT(httpContext, context);
+            UserSchema user = await GetUserFromJWT(httpContext, dbCtx);
             if (user == null)
             {
                 throw new UserNotFoundException();
             }
-            UserService.CheckIfBanned(user, context);
+            UserService.CheckIfBanned(user, dbCtx);
 
             user.ReplyNotificationsEnabled = newData.Enabled;
-            context.Users.Update(user);
-            await context.SaveChangesAsync();
+            dbCtx.Users.Update(user);
+            await dbCtx.SaveChangesAsync();
         }
 
-        public async Task<Statistics> GetStats(DataContext context)
+        public async Task<Statistics> GetStats(DataContext dbCtx)
         {
             Statistics stats = new Statistics();
-            stats.TotalUsers = (await context.Users.ToListAsync()).Count;
-            stats.ActiveUsers_24h = (await context.Users.Where(u => u.LastActive > DateTime.UtcNow.AddHours(-24)).ToListAsync()).Count;
-            stats.ActiveUsers_7d = (await context.Users.Where(u => u.LastActive > DateTime.UtcNow.AddDays(-7)).ToListAsync()).Count;
-            stats.ActiveUsers_30d = (await context.Users.Where(u => u.LastActive > DateTime.UtcNow.AddDays(-30)).ToListAsync()).Count;
-            stats.ActiveUsers_1y = (await context.Users.Where(u => u.LastActive > DateTime.UtcNow.AddYears(-1)).ToListAsync()).Count;
+            stats.TotalUsers = (await dbCtx.Users.ToListAsync()).Count;
+            stats.ActiveUsers_24h = (await dbCtx.Users.Where(u => u.LastActive > DateTime.UtcNow.AddHours(-24)).ToListAsync()).Count;
+            stats.ActiveUsers_7d = (await dbCtx.Users.Where(u => u.LastActive > DateTime.UtcNow.AddDays(-7)).ToListAsync()).Count;
+            stats.ActiveUsers_30d = (await dbCtx.Users.Where(u => u.LastActive > DateTime.UtcNow.AddDays(-30)).ToListAsync()).Count;
+            stats.ActiveUsers_1y = (await dbCtx.Users.Where(u => u.LastActive > DateTime.UtcNow.AddYears(-1)).ToListAsync()).Count;
 
             return stats;
         }
 
-        public static void CheckIfBanned(UserSchema user, DataContext context)
+        public static void CheckIfBanned(UserSchema user, DataContext dbCtx)
         {
             if (user?.IsBanned == true)
             {

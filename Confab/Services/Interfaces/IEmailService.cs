@@ -5,7 +5,7 @@ namespace Confab.Services.Interfaces
 {
     public interface IEmailService
     {
-        Task CheckAndSendModQueueReminder(DataContext context);
+        Task CheckAndSendModQueueReminder(DataContext dbCtx);
         Task<bool> SendEmail(AuthCodeTemplatingData data);
         Task<bool> SendEmail(AdminModQueueReminderTemplatingData template);
         Task<bool> SendEmail(AdminAutoModNotifTemplatingData template);

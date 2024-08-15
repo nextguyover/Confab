@@ -9,21 +9,21 @@ namespace Confab.Tests.Helpers
         {
             using (var scope = factory.Services.CreateScope())
             {
-                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+                DataContext dbCtx = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-                CommentLocationSchema location = context.CommentLocations.Where(l => l.LocationStr == locationStr).SingleOrDefault();
+                CommentLocationSchema location = dbCtx.CommentLocations.Where(l => l.LocationStr == locationStr).SingleOrDefault();
                 if (location == null)
                 {
                     location = new CommentLocationSchema { LocationStr = locationStr, LocalStatus = CommentLocationSchema.CommentingStatus.Enabled };
-                    context.CommentLocations.Add(location);
+                    dbCtx.CommentLocations.Add(location);
                 }
                 else
                 {
                     location.LocalStatus = CommentLocationSchema.CommentingStatus.Enabled;
-                    context.CommentLocations.Update(location);
+                    dbCtx.CommentLocations.Update(location);
                 }
 
-                context.SaveChanges();
+                dbCtx.SaveChanges();
             }
         }
     }

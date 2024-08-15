@@ -206,26 +206,26 @@ catch { }
 
 using (var scope =
   app.Services.CreateScope())
-using (var context = scope.ServiceProvider.GetService<DataContext>())
+using (var dbCtx = scope.ServiceProvider.GetService<DataContext>())
 {
     try {   // Create the database directory if it doesn't exist
-        Directory.CreateDirectory(Path.GetDirectoryName(context.Database.GetDbConnection().DataSource));
+        Directory.CreateDirectory(Path.GetDirectoryName(dbCtx.Database.GetDbConnection().DataSource));
     } catch {}
-    context.Database.Migrate();
+    dbCtx.Database.Migrate();
 
-    if (await context.GlobalSettings.SingleOrDefaultAsync() == null)
+    if (await dbCtx.GlobalSettings.SingleOrDefaultAsync() == null)
     {
-        context.GlobalSettings.Add(new GlobalSettingsSchema());     //initialise the single global settings record, if it doesn't already exist
+        dbCtx.GlobalSettings.Add(new GlobalSettingsSchema());     //initialise the single global settings record, if it doesn't already exist
     }
 
-    List<UserSchema> currentAdminsInDb = await context.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
+    List<UserSchema> currentAdminsInDb = await dbCtx.Users.Where(u => u.Role == UserRole.Admin).ToListAsync();
     List<string> currentAdmins = builder.Configuration.GetSection("UserRoles:Admin").GetChildren().ToArray().Select(c => c.Value).ToList();
     foreach (UserSchema currentAdminInDb in currentAdminsInDb)
     {
         if (!currentAdmins.Contains(currentAdminInDb.Email))        //firstly, remove any admins that have been removed from appsettings.json
         {
             currentAdminInDb.Role = UserRole.Standard;
-            context.Users.Update(currentAdminInDb);
+            dbCtx.Users.Update(currentAdminInDb);
 
             app.Logger.LogInformation("User " + currentAdminInDb.Email + " has been removed as an Admin");
         }
@@ -233,7 +233,7 @@ using (var context = scope.ServiceProvider.GetService<DataContext>())
 
     foreach (string currentAdmin in currentAdmins)      //secondly, add/create new admins
     {
-        UserSchema adminUser = await context.Users.Where(u => u.Email == currentAdmin).SingleOrDefaultAsync();
+        UserSchema adminUser = await dbCtx.Users.Where(u => u.Email == currentAdmin).SingleOrDefaultAsync();
 
         if(adminUser == null)
         {
@@ -241,7 +241,7 @@ using (var context = scope.ServiceProvider.GetService<DataContext>())
 
             try
             {
-                adminUser = await userService.CreateNewUser(context, UserRole.Admin, currentAdmin);
+                adminUser = await userService.CreateNewUser(dbCtx, UserRole.Admin, currentAdmin);
                 app.Logger.LogInformation("Created new Admin user with email: " + adminUser.Email);
             } catch
             {
@@ -253,7 +253,7 @@ using (var context = scope.ServiceProvider.GetService<DataContext>())
             if (adminUser.Role != UserRole.Admin)
             {
                 adminUser.Role = UserRole.Admin;
-                context.Users.Update(adminUser);
+                dbCtx.Users.Update(adminUser);
 
                 app.Logger.LogInformation("User " + adminUser.Email + " has been set as an Admin");
             }
@@ -261,7 +261,7 @@ using (var context = scope.ServiceProvider.GetService<DataContext>())
         }
     }
 
-    await context.SaveChangesAsync();
+    await dbCtx.SaveChangesAsync();
 }
 
 // Configure the HTTP request pipeline.

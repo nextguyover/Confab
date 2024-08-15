@@ -28,9 +28,9 @@
         {
             using (var scope = _serviceProvider.CreateScope())
             {
-                DataContext context = scope.ServiceProvider.GetRequiredService<DataContext>();
+                DataContext dbCtx = scope.ServiceProvider.GetRequiredService<DataContext>();
                 IEmailService emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                await emailService.CheckAndSendModQueueReminder(context);
+                await emailService.CheckAndSendModQueueReminder(dbCtx);
             }
         }
 

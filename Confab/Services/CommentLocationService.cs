@@ -15,13 +15,13 @@ namespace Confab.Services
     {
         public static string PageDetectionRegex;
 
-        public async Task<CommentLocationSchema> GetLocation(DataContext context, string locationString)
+        public async Task<CommentLocationSchema> GetLocation(DataContext dbCtx, string locationString)
         {
             string locationStrConverted = ParseLocation(locationString);
-            return await context.CommentLocations.SingleOrDefaultAsync(l => l.LocationStr == locationStrConverted);
+            return await dbCtx.CommentLocations.SingleOrDefaultAsync(l => l.LocationStr == locationStrConverted);
         }
 
-        public async Task<CommentLocationSchema> CreateNewLocation(DataContext context, string locationString)
+        public async Task<CommentLocationSchema> CreateNewLocation(DataContext dbCtx, string locationString)
         {
             string locationStrConverted = ParseLocation(locationString);
 
@@ -30,8 +30,8 @@ namespace Confab.Services
                 LocationStr = locationStrConverted
             };
 
-            context.Add(locationObj);
-            await context.SaveChangesAsync();
+            dbCtx.Add(locationObj);
+            await dbCtx.SaveChangesAsync();
 
             return locationObj;
         }

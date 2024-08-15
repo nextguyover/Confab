@@ -9,9 +9,9 @@ namespace Confab.Services
 {
     public class AutoModerationService : IAutoModerationService
     {
-        public async Task<List<ModerationRule>> GetModerationRules(DataContext context)
+        public async Task<List<ModerationRule>> GetModerationRules(DataContext dbCtx)
         {
-            return (await context.AutoModerationRules.ToListAsync()).ConvertAll((AutoModerationRuleSchema rule) =>
+            return (await dbCtx.AutoModerationRules.ToListAsync()).ConvertAll((AutoModerationRuleSchema rule) =>
             {
                 return new ModerationRule
                 {
@@ -23,12 +23,12 @@ namespace Confab.Services
             });
         }
 
-        public async Task SetModerationRules(DataContext context, List<ModerationRule> newRules)
+        public async Task SetModerationRules(DataContext dbCtx, List<ModerationRule> newRules)
         {
-            List<AutoModerationRuleSchema> existingRules = await context.AutoModerationRules.ToListAsync();
-            context.AutoModerationRules.RemoveRange(existingRules);
+            List<AutoModerationRuleSchema> existingRules = await dbCtx.AutoModerationRules.ToListAsync();
+            dbCtx.AutoModerationRules.RemoveRange(existingRules);
 
-            await context.AutoModerationRules.AddRangeAsync(newRules.ConvertAll((ModerationRule rule) =>
+            await dbCtx.AutoModerationRules.AddRangeAsync(newRules.ConvertAll((ModerationRule rule) =>
             {
                 return new AutoModerationRuleSchema
                 {
@@ -39,7 +39,7 @@ namespace Confab.Services
                 };
             }));
 
-            await context.SaveChangesAsync();
+            await dbCtx.SaveChangesAsync();
         }
     }
 }
