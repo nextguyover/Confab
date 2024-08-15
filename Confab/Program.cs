@@ -23,6 +23,7 @@ using Confab.Models.AdminPanel.Emails;
 using Confab.Models.Moderation;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Builder;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -150,6 +151,8 @@ UserService.MaxVerificationCodeEmailResetDurationHours = int.Parse(builder.Confi
 UserService.MaxNewSignups = int.Parse(builder.Configuration["UserAuthParams:MaxNewSignups"]);
 UserService.MaxNewSignupsDurationMinutes = int.Parse(builder.Configuration["UserAuthParams:MaxNewSignupsDurationMinutes"]);
 
+UserService.AnonymousCommentingEnabled = bool.Parse(builder.Configuration["AnonymousCommenting:Enabled"]);
+
 UserService.CustomUsernamesEnabled = bool.Parse(builder.Configuration["Usernames:CustomUsernamesEnabled"]);
 UserService.UsernameChangeCooldownTimeMins = int.Parse(builder.Configuration["Usernames:UsernameChangeCooldownTimeMins"]);
 
@@ -211,7 +214,8 @@ using (var dbCtx = scope.ServiceProvider.GetService<DataContext>())
     try {   // Create the database directory if it doesn't exist
         Directory.CreateDirectory(Path.GetDirectoryName(dbCtx.Database.GetDbConnection().DataSource));
     } catch {}
-    dbCtx.Database.Migrate();
+    //dbCtx.Database.Migrate();     //TODO: apply migrations and change this back
+    dbCtx.Database.EnsureCreated();
 
     if (await dbCtx.GlobalSettings.SingleOrDefaultAsync() == null)
     {
@@ -293,6 +297,11 @@ if (app.Logger.IsEnabled(LogLevel.Trace))
 {
     app.UseMiddleware<ApiLoggingMiddleware>();
 }
+
+app.MapGet("/user/anonymous-commenting-enabled", async () => 
+{
+    return Results.Ok(new { Enabled = UserService.AnonymousCommentingEnabled });
+});
 
 app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService, IEmailService emailService, ICommentLocationService locationService, DataContext dbCtx) =>
 {
@@ -438,6 +447,18 @@ app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService,
         app.Logger.LogError(ex.ToString());
         return Results.StatusCode(500);
     }
+});
+
+app.MapPost("/user/anon-login", async (HttpContext context, IUserService userService, DataContext dbCtx) =>
+{
+    //try {
+        return Results.Ok(await userService.AnonLogin(context, dbCtx));
+    //}
+    //catch (Exception ex)
+    //{
+    //    app.Logger.LogError(ex.ToString());
+    //    return Results.StatusCode(500);
+    //}
 });
 
 app.MapGet("/user/change-username", async (HttpContext context, IUserService userService, DataContext dbCtx) =>

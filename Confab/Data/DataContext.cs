@@ -13,5 +13,6 @@ namespace Confab.Data
         public DbSet<GlobalSettingsSchema> GlobalSettings => Set<GlobalSettingsSchema>();
         public DbSet<CommentLocationSchema> CommentLocations => Set<CommentLocationSchema>();
         public DbSet<AutoModerationRuleSchema> AutoModerationRules => Set<AutoModerationRuleSchema>();
+        public DbSet<ClientIPSchema> ClientIPs => Set<ClientIPSchema>();
     }
 }

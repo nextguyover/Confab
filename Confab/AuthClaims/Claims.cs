@@ -7,10 +7,11 @@ namespace Confab.AuthClaims
 {
     public class Claims
     {
-        public static string Email = "Email";
+        //public static string Email = "Email";
         //public static string Role = "Role";
         //public static string PublicId = "PublicId";
         //public static string IsBanned = "IsBanned";
+        public static string Id = "Id";
 
         public static string GetClaim(HttpContext context, DateTime ValidityStart, string claimType)
         {

@@ -14,6 +14,7 @@ using Confab.Services.Interfaces;
 using Confab.Emails.TemplateSubstitution;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
+using System.Net;
 
 namespace Confab.Services
 {
@@ -27,6 +28,8 @@ namespace Confab.Services
 
         public static int MaxNewSignups = -1;
         public static int MaxNewSignupsDurationMinutes = 60;
+
+        public static bool AnonymousCommentingEnabled = false;
 
         public static bool CustomUsernamesEnabled = false;
         public static int UsernameChangeCooldownTimeMins = 60;
@@ -45,8 +48,8 @@ namespace Confab.Services
         }
         public static async Task<UserSchema> GetUserFromJWT(HttpContext httpContext, DataContext dbCtx)
         {
-            string userEmail = AuthClaims.Claims.GetClaim(httpContext, (await dbCtx.GlobalSettings.SingleAsync()).UserAuthJwtValidityStart, AuthClaims.Claims.Email);
-            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userEmail));
+            int userId = Convert.ToInt32(AuthClaims.Claims.GetClaim(httpContext, (await dbCtx.GlobalSettings.SingleAsync()).UserAuthJwtValidityStart, AuthClaims.Claims.Id));
+            UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Id.Equals(userId));
 
             if(user != null)
                 await UpdateLastActive(user, dbCtx);
@@ -176,6 +179,24 @@ namespace Confab.Services
             return user;
         }
         
+        public async Task<UserSchema> CreateNewAnonUser(DataContext context, ClientIPSchema clientIP)
+        {
+            UserSchema user = new UserSchema(){
+                CreationIP = clientIP,
+                IsAnon = true,
+                PublicId = GenerateUserId(),
+                Role = UserRole.Standard,
+                RecordCreation = DateTime.UtcNow
+            };
+            
+            user.PublicId = GenerateUserId();
+
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+
+            return user;
+        }
+        
         private static string GenerateUserId()        //https://stackoverflow.com/a/1344258/9112181
         {
             var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -250,7 +271,8 @@ namespace Confab.Services
 
                 var claims = new[]
                 {
-                    new Claim(AuthClaims.Claims.Email, user.Email),
+                    new Claim(AuthClaims.Claims.Id, user.Id.ToString()),
+                    //new Claim(AuthClaims.Claims.Email, user.Email),
                     //new Claim(AuthClaims.Claims.Role, user.Role.ToString()),
                     //new Claim(AuthClaims.Claims.PublicId, user.PublicId),
                     //new Claim(AuthClaims.Claims.IsBanned, user.PublicId),
@@ -282,6 +304,95 @@ namespace Confab.Services
                 await dbCtx.SaveChangesAsync();
                 throw new UserLoginFailedException();
             }
+        }
+
+        public async Task<LoginResponse> AnonLogin(HttpContext httpContext, DataContext context)
+        {
+            IPAddress clientIP = GetClientIP(httpContext);
+
+            ClientIPSchema IPRecord = context.ClientIPs.SingleOrDefault(o => o.IPAddressBytes.Equals(clientIP.GetAddressBytes()));
+            if(IPRecord == null)
+            {
+                IPRecord = new ClientIPSchema { IPAddress = clientIP };
+                context.ClientIPs.Add(IPRecord);
+            }
+
+            if(IPRecord.IsBanned)
+            {
+                throw new UserBannedException();
+            }
+
+            UserSchema user = await CreateNewAnonUser(context, IPRecord);
+            await context.SaveChangesAsync();
+
+            var claims = new[]
+            {
+                new Claim(AuthClaims.Claims.Id, user.Id.ToString()),
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey));
+
+            var token = new JwtSecurityTokenHandler().CreateJwtSecurityToken(
+                    issuer: JwtValidationParams.ValidIssuer,
+                    audience: JwtValidationParams.ValidAudience,
+                    subject: new ClaimsIdentity(claims),
+                    notBefore: DateTime.UtcNow,
+                    expires: DateTime.UtcNow.AddDays(365),
+                    null,
+                    signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+                    encryptingCredentials: new EncryptingCredentials(key, JwtConstants.DirectKeyUseAlg,
+                        SecurityAlgorithms.Aes256CbcHmacSha512)
+                );
+
+            return new LoginResponse { 
+                Outcome = LoginOutcome.Success, 
+                Token = new JwtSecurityTokenHandler().WriteToken(token) 
+            };
+        }
+
+        private static IPAddress GetClientIP(HttpContext httpContext)   // https://stackoverflow.com/a/45046326/9112181
+        {
+            HttpRequest request = httpContext.Request;
+
+            // handle standardized 'Forwarded' header
+            string forwarded = request.Headers["Forwarded"];
+            if (!String.IsNullOrEmpty(forwarded))
+            {
+                foreach (string segment in forwarded.Split(',')[0].Split(';'))
+                {
+                    string[] pair = segment.Trim().Split('=');
+                    if (pair.Length == 2 && pair[0].Equals("for", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string ip = pair[1].Trim('"');
+
+                        // IPv6 addresses are always enclosed in square brackets
+                        int left = ip.IndexOf('['), right = ip.IndexOf(']');
+                        if (left == 0 && right > 0)
+                        {
+                            return IPAddress.Parse(ip.Substring(1, right - 1));
+                        }
+
+                        // strip port of IPv4 addresses
+                        int colon = ip.IndexOf(':');
+                        if (colon != -1)
+                        {
+                            return IPAddress.Parse(ip.Substring(0, colon));
+                        }
+
+                        // this will return IPv4, "unknown", and obfuscated addresses
+                        return IPAddress.Parse(ip);
+                    }
+                }
+            }
+
+            // handle non-standardized 'X-Forwarded-For' header
+            string xForwardedFor = request.Headers["X-Forwarded-For"];
+            if (!String.IsNullOrEmpty(xForwardedFor))
+            {
+                return IPAddress.Parse(xForwardedFor.Split(',')[0]);
+            }
+
+            return httpContext.Connection.RemoteIpAddress;
         }
 
         private async Task VerifyUserLoginEnabled(UserSchema user, DataContext dbCtx)
@@ -509,11 +620,14 @@ namespace Confab.Services
         {
             if (userDb == null) return null;
 
-            User user = new User();
-            user.Username = userDb.Username;
-            user.UserId = userDb.PublicId;
-            user.Role = userDb.Role;
-            user.Email = userDb.Email;
+            User user = new User
+            {
+                Username = userDb.Username,
+                UserId = userDb.PublicId,
+                Role = userDb.Role,
+                Email = userDb.Email,
+                IsAnon = userDb.IsAnon
+            };
 
             return user;
         }

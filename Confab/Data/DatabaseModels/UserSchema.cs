@@ -15,6 +15,10 @@ namespace Confab.Data.DatabaseModels
 
         public string Email { get; set; }
 
+        public bool IsAnon { get; set; }
+        // public bool CaptchaVerified { get; set; }
+        public ClientIPSchema CreationIP { get; set; }
+
         public string VerificationCode { get; set; }
         public DateTime VerificationExpiry { get; set; }
         public int VerificationCodeAttempts { get; set; }
