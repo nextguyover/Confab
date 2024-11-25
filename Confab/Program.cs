@@ -23,7 +23,6 @@ using Confab.Models.AdminPanel.Emails;
 using Confab.Models.Moderation;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.HttpLogging;
-using Microsoft.AspNetCore.Builder;
 
 var builder = WebApplication.CreateBuilder(args);
 
