@@ -109,13 +109,15 @@ namespace Confab.Services
         {
             bool userEmailSent = false;
             if (newComment.ParentComment != null
-                && newComment.ParentComment.Author != newComment.Author
-                && !newComment.AwaitingModeration
-                && newComment.ParentComment.Author.ReplyNotificationsEnabled
-                && !newComment.ParentComment.Author.IsBanned
-                && (approvedByAdmin == null || (approvedByAdmin != null && newComment.ParentComment?.Author.Role != UserRole.Admin))
-                && newComment.Location.UserNotifLocal
-                && (await dbCtx.GlobalSettings.SingleAsync()).UserNotifGlobal)        //notify user being replied to
+                && newComment.ParentComment.Author != newComment.Author         //don't notify user if they're replying to themselves
+                && !newComment.AwaitingModeration                               //don't notify parent if new comment is awaiting moderation
+                && newComment.ParentComment.Author.ReplyNotificationsEnabled    //don't notify parent if they've disabled notifications
+                && !newComment.ParentComment.Author.IsBanned                    //don't notify parent if they're banned
+                && !newComment.ParentComment.Author.IsAnon                      //don't notify parent if they're anonymously commenting
+                && (approvedByAdmin == null ||                                  //notify if approvedByAdmin is null (moderation is disabled)
+                    (approvedByAdmin != null && newComment.ParentComment?.Author.Role != UserRole.Admin)) // or, moderation is enabled, and the parent comment author isn't an admin (we notify admins separately)
+                && newComment.Location.UserNotifLocal                           // notify if reply notifications are enabled at the location
+                && (await dbCtx.GlobalSettings.SingleAsync()).UserNotifGlobal)  // notify if reply notifications are enabled globally
             {
                 emailService.SendEmailFireAndForget(new UserCommentReplyNotifTemplatingData
                 {
