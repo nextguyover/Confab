@@ -380,15 +380,15 @@ namespace Confab.Services
             await dbCtx.SaveChangesAsync();
         }
 
-        public async Task<LoginResponse> AnonLogin(HttpContext httpContext, DataContext context)
+        public async Task<LoginResponse> AnonLogin(HttpContext httpContext, DataContext dbCtx)
         {
             IPAddress clientIP = GetClientIP(httpContext);
 
-            ClientIPSchema IPRecord = context.ClientIPs.SingleOrDefault(o => o.IPAddressBytes.Equals(clientIP.GetAddressBytes()));
+            ClientIPSchema IPRecord = await dbCtx.ClientIPs.SingleOrDefaultAsync(o => o.IPAddressBytes.Equals(clientIP.GetAddressBytes()));
             if(IPRecord == null)
             {
                 IPRecord = new ClientIPSchema { IPAddress = clientIP };
-                context.ClientIPs.Add(IPRecord);
+                dbCtx.ClientIPs.Add(IPRecord);
             }
 
             if(IPRecord.IsBanned)
@@ -396,8 +396,8 @@ namespace Confab.Services
                 throw new UserBannedException();
             }
 
-            UserSchema user = await CreateNewAnonUser(context, IPRecord);
-            await context.SaveChangesAsync();
+            UserSchema user = await CreateNewAnonUser(dbCtx, IPRecord);
+            await dbCtx.SaveChangesAsync();
 
             var claims = new[]
             {
@@ -743,6 +743,28 @@ namespace Confab.Services
             };
 
             return user;
+        }
+
+        public async Task<bool> GetAnonCommentsAllowed(HttpContext httpContext, DataContext dbCtx)
+        {
+            if (!UserService.AnonymousCommentingEnabled) return false;
+
+            // check if IP is banned or rate limited
+            IPAddress clientIP = UserService.GetClientIP(httpContext);
+
+            ClientIPSchema IPRecord = await dbCtx.ClientIPs.SingleOrDefaultAsync(o => o.IPAddressBytes.Equals(clientIP.GetAddressBytes()));
+
+            if (IPRecord != null)
+            {
+                if (IPRecord.IsBanned)
+                {
+                    return false;
+                }
+
+                // TODO: implement rate limit check
+            }
+
+            return true;            
         }
     }
 }

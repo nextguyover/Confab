@@ -297,9 +297,9 @@ if (app.Logger.IsEnabled(LogLevel.Trace))
     app.UseMiddleware<ApiLoggingMiddleware>();
 }
 
-app.MapGet("/user/anonymous-commenting-enabled", async () => 
+app.MapGet("/user/anonymous-commenting-enabled", async (HttpContext context, DataContext dbCtx, IUserService userService) => 
 {
-    return Results.Ok(new { Enabled = UserService.AnonymousCommentingEnabled });
+    return Results.Ok(new { Enabled = await userService.GetAnonCommentsAllowed(context, dbCtx) });
 });
 
 app.MapPost("/user/login", async (UserLogin userLogin, HttpContext context, IUserService userService, IEmailService emailService, ICommentLocationService locationService, DataContext dbCtx) =>

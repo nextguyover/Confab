@@ -24,5 +24,6 @@ namespace Confab.Services.Interfaces
         Task SetReplyNotifications(UserReplyNotifications newData, HttpContext httpContext, DataContext dbCtx);
         Task<UserReplyNotifications> GetReplyNotifications(HttpContext httpContext, DataContext dbCtx);
         Task<bool> GetChangeUsernameAvailable(HttpContext httpContext, DataContext dbCtx);
+        public Task<bool> GetAnonCommentsAllowed(HttpContext httpContext, DataContext dbCtx);
     }
 }
