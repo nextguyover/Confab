@@ -450,14 +450,19 @@ app.MapPost("/user/login", async (UserLogin userLogin, HttpContext context, IUse
 
 app.MapPost("/user/anon-login", async (HttpContext context, IUserService userService, DataContext dbCtx) =>
 {
-    //try {         //TODO: restore try-catch block
+    try {
         return Results.Ok(await userService.AnonLogin(context, dbCtx));
-    //}
-    //catch (Exception ex)
-    //{
-    //    app.Logger.LogError(ex.ToString());
-    //    return Results.StatusCode(500);
-    //}
+    }
+    catch (Exception ex)
+    {
+        if (ex is UserBannedException)
+        {
+            return Results.StatusCode(401);
+        }
+
+        app.Logger.LogError(ex.ToString());
+        return Results.StatusCode(500);
+    }
 });
 
 app.MapGet("/user/change-username", async (HttpContext context, IUserService userService, DataContext dbCtx) =>
@@ -480,6 +485,7 @@ app.MapGet("/user/change-username", async (HttpContext context, IUserService use
             return Results.StatusCode(401);
         }
 
+        app.Logger.LogError(ex.ToString());
         return Results.StatusCode(500);
     }
 });

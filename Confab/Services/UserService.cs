@@ -61,7 +61,7 @@ namespace Confab.Services
         {
             UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             CommentLocationSchema parsedLocation = null;
             try
@@ -233,6 +233,11 @@ namespace Confab.Services
         public async Task<LoginResponse> Login(UserLogin userLogin, HttpContext httpContext, DataContext dbCtx)
         {
             UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
+            
+            UserSchema anonUser = null;
+            try{
+                anonUser = await GetUserFromJWT(httpContext, dbCtx); // decode JWT, get anon user (if sent)
+            } catch (MissingAuthorizationException) {}  //if no JWT, don't assign anonUser
 
             if (user == null)    //if user doesn't exist, can't login
             {
@@ -241,7 +246,8 @@ namespace Confab.Services
 
             await VerifyUserLoginEnabled(user, dbCtx);
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(anonUser, dbCtx); // check if anon user is banned (prevents merge)
 
             // check if verification code has expired
             if (user.VerificationExpiry < DateTime.UtcNow || user.VerificationCodeAttempts >= MaxVerificationCodeAttempts)
@@ -283,9 +289,6 @@ namespace Confab.Services
             // check if merge anon account is requested
             if (userLogin.MergeAnonAccount)
             {
-                // decode JWT, get anon user
-                UserSchema anonUser = await GetUserFromJWT(httpContext, dbCtx);
-
                 if (anonUser != null)
                 {
                     await MergeAnonAccount(user, anonUser, dbCtx);
@@ -321,7 +324,6 @@ namespace Confab.Services
                 Outcome = LoginOutcome.Success,
                 Token = new JwtSecurityTokenHandler().WriteToken(token)
             };
-
         }
 
         private async Task MergeAnonAccount(UserSchema authenticatedUser, UserSchema anonUser, DataContext dbCtx)
@@ -339,11 +341,11 @@ namespace Confab.Services
             }
 
             // port anonUser's votes to authenticatedUser.
-            dbCtx.Entry(anonUser).Collection(u => u.UpvotedComments).Load();
-            dbCtx.Entry(anonUser).Collection(u => u.DownvotedComments).Load();
+            await dbCtx.Entry(anonUser).Collection(u => u.UpvotedComments).LoadAsync();
+            await dbCtx.Entry(anonUser).Collection(u => u.DownvotedComments).LoadAsync();
 
-            dbCtx.Entry(authenticatedUser).Collection(u => u.UpvotedComments).Load();
-            dbCtx.Entry(authenticatedUser).Collection(u => u.DownvotedComments).Load();
+            await dbCtx.Entry(authenticatedUser).Collection(u => u.UpvotedComments).LoadAsync();
+            await dbCtx.Entry(authenticatedUser).Collection(u => u.DownvotedComments).LoadAsync();
 
             // if both users have voted on the same comment, anonUser's vote will overwrite authenticatedUser's vote
             foreach (CommentSchema comment in anonUser.UpvotedComments)
@@ -484,7 +486,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             return CustomUsernamesEnabled || user.Role == UserRole.Admin;
         }
@@ -498,7 +500,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             if(!CustomUsernamesEnabled && user.Role != UserRole.Admin)
             {
@@ -578,7 +580,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             User userToReturn = userSchemaToUser(user);
             if(!CustomUsernamesEnabled && user.Role != UserRole.Admin)
@@ -612,16 +614,14 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(currentUser, dbCtx);
+            await UserService.EnsureNotBanned(currentUser, dbCtx);
 
             if (user == currentUser)    //prevent admin banning themselves
             {
                 throw new InvalidAuthorizationException();
             }
 
-            user.IsBanned = true; 
-            dbCtx.Users.Update(user);
-            await dbCtx.SaveChangesAsync();
+            await SetUserBanState(user, true, dbCtx);
         }
         public async Task UnBanUser(UserPublicId userPublicId, HttpContext httpContext, DataContext dbCtx)
         {
@@ -634,10 +634,27 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(currentUser, dbCtx);
+            await UserService.EnsureNotBanned(currentUser, dbCtx);
 
-            user.IsBanned = false;
-            dbCtx.Users.Update(user);
+            await SetUserBanState(user, false, dbCtx);
+        }
+
+        public static async Task SetUserBanState(UserSchema user, bool isBannned, DataContext dbCtx){
+            // if user is anon, ban their IP
+            if (user.IsAnon)
+            {
+                if(user.CreationIP == null)
+                    await dbCtx.Entry(user).Reference(u => u.CreationIP).LoadAsync();
+
+                user.CreationIP.IsBanned = isBannned;
+                dbCtx.ClientIPs.Update(user.CreationIP);
+            }
+            else // if user is not anon, ban the user
+            {
+                user.IsBanned = isBannned;
+                dbCtx.Users.Update(user);
+            }
+
             await dbCtx.SaveChangesAsync();
         }
 
@@ -648,7 +665,7 @@ namespace Confab.Services
             {
                 throw new UserNotFoundException();
             }
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             return new UserReplyNotifications
             {
@@ -662,7 +679,7 @@ namespace Confab.Services
             {
                 throw new UserNotFoundException();
             }
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             user.ReplyNotificationsEnabled = newData.Enabled;
             dbCtx.Users.Update(user);
@@ -681,11 +698,34 @@ namespace Confab.Services
             return stats;
         }
 
-        public static void CheckIfBanned(UserSchema user, DataContext dbCtx)
+        public static async Task EnsureNotBanned(UserSchema user, DataContext dbCtx)
         {
-            if (user?.IsBanned == true)
+            if (user?.IsAnon == true)
+            {
+                if(user.CreationIP == null)
+                    await dbCtx.Entry(user).Reference(u => u.CreationIP).LoadAsync();
+
+                if(user.CreationIP.IsBanned == true)
+                    throw new UserBannedException();
+            }
+            else if (user?.IsBanned == true)
             {
                 throw new UserBannedException();
+            }
+        }
+
+        public static async Task<bool> GetUserIsBanned(UserSchema user, DataContext dbCtx)
+        {
+            if (user?.IsAnon == true)
+            {
+                if(user.CreationIP == null)
+                    await dbCtx.Entry(user).Reference(u => u.CreationIP).LoadAsync();
+
+                return user.CreationIP.IsBanned == true;
+            }
+            else
+            {
+                return user?.IsBanned == true;
             }
         }
 

@@ -48,7 +48,7 @@ namespace Confab.Services
 
             UserSchema author = await UserService.GetUserFromJWT(httpContext, dbCtx);
 
-            UserService.CheckIfBanned(author, dbCtx);
+            await UserService.EnsureNotBanned(author, dbCtx);
 
             CommentLocationSchema location = await locationService.GetLocation(dbCtx, commentCreate?.Location);
             if (location == null) {
@@ -256,7 +256,7 @@ namespace Confab.Services
         public async Task<CommentingEnabled> CommentingEnabledAtLocation(CommentLocation commentLocation, ICommentLocationService locationService, HttpContext httpContext, DataContext dbCtx)
         {
             UserSchema currentUser = await UserService.GetUserFromJWT(httpContext, dbCtx);
-            UserService.CheckIfBanned(currentUser, dbCtx);
+            await UserService.EnsureNotBanned(currentUser, dbCtx);
 
             CommentLocationSchema location = await locationService.GetLocation(dbCtx, commentLocation?.Location);
             if (location == null)
@@ -364,7 +364,7 @@ namespace Confab.Services
                     CommentId = comment.PublicId,
                     IsDeleted = comment.IsDeleted ? true : null,
                     AwaitingModeration = comment.AwaitingModeration ? ((currentUser.Role == UserRole.Admin || comment.Author == currentUser) ? true : null) : null,
-                    IsBanned = currentUser?.Role == UserRole.Admin ? (comment.Author.IsBanned ? true : null) : null,
+                    IsBanned = currentUser?.Role == UserRole.Admin ? (await UserService.GetUserIsBanned(comment.Author, dbCtx) ? true : null) : null,
                     CanEdit = CommentEditAllowed(comment) ? (comment.Author == currentUser ? true : null) : null,
                     Content = comment.Content,
                     CreationTime = (currentUser?.Role == UserRole.Admin) ? comment.CreationTime : (comment.ModeratorApprovalTimestamp != DateTime.MinValue ? comment.ModeratorApprovalTimestamp : comment.CreationTime),
@@ -463,7 +463,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             if ((!comment.Location.LocalVotingEnabled || !(await dbCtx.GlobalSettings.SingleAsync()).VotingEnabled) && user.Role != UserRole.Admin)
             {
@@ -517,7 +517,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             if (comment.Author != user)
             {
@@ -601,7 +601,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             if (comment.Author != user && user.Role != UserRole.Admin)
             {
@@ -638,7 +638,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(currentUser, dbCtx);
+            await UserService.EnsureNotBanned(currentUser, dbCtx);
 
             if (currentUser.Role != UserRole.Admin)
             {
@@ -687,7 +687,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
 
-            UserService.CheckIfBanned(user, dbCtx);
+            await UserService.EnsureNotBanned(user, dbCtx);
 
             if (user.Role != UserRole.Admin)
             { 
@@ -772,7 +772,7 @@ namespace Confab.Services
             }
 
             UserSchema admin = await UserService.GetUserFromJWT(httpContext, dbCtx);
-            UserService.CheckIfBanned(admin, dbCtx);
+            await UserService.EnsureNotBanned(admin, dbCtx);
 
             comment.AwaitingModeration = false;
             comment.ModeratorApprovalTimestamp = DateTime.UtcNow;
@@ -923,9 +923,7 @@ namespace Confab.Services
                             case AutoModerationAction.Ban:
                             case AutoModerationAction.BanAndDeleteAll:
                                 returnVal = (false, null);
-                                comment.Author.IsBanned = true;
-                                dbCtx.Users.Update(comment.Author);
-                                await dbCtx.SaveChangesAsync();
+                                await UserService.SetUserBanState(comment.Author, true, dbCtx);
 
                                 if (rule.MatchAction == AutoModerationAction.BanAndDeleteAll)
                                     await _DeleteUserContent(comment.Author, dbCtx);
