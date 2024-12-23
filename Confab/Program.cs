@@ -302,7 +302,7 @@ app.MapGet("/user/anonymous-commenting-enabled", async () =>
     return Results.Ok(new { Enabled = UserService.AnonymousCommentingEnabled });
 });
 
-app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService, IEmailService emailService, ICommentLocationService locationService, DataContext dbCtx) =>
+app.MapPost("/user/login", async (UserLogin userLogin, HttpContext context, IUserService userService, IEmailService emailService, ICommentLocationService locationService, DataContext dbCtx) =>
 {
     if (userLogin == null) return Results.StatusCode(400);
 
@@ -394,7 +394,7 @@ app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService,
 
     try    //if LoginCode is provided, user is trying to login
     {
-        return Results.Ok(await userService.Login(userLogin, dbCtx));
+        return Results.Ok(await userService.Login(userLogin, context, dbCtx));
     }
     catch (Exception ex)
     {
@@ -450,7 +450,7 @@ app.MapPost("/user/login", async (UserLogin userLogin, IUserService userService,
 
 app.MapPost("/user/anon-login", async (HttpContext context, IUserService userService, DataContext dbCtx) =>
 {
-    //try {
+    //try {         //TODO: restore try-catch block
         return Results.Ok(await userService.AnonLogin(context, dbCtx));
     //}
     //catch (Exception ex)

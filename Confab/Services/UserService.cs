@@ -230,7 +230,7 @@ namespace Confab.Services
             }
         }
 
-        public async Task<LoginResponse> Login(UserLogin userLogin, DataContext dbCtx)
+        public async Task<LoginResponse> Login(UserLogin userLogin, HttpContext httpContext, DataContext dbCtx)
         {
             UserSchema user = await dbCtx.Users.SingleOrDefaultAsync(o => o.Email.Equals(userLogin.Email));
 
@@ -243,7 +243,8 @@ namespace Confab.Services
 
             UserService.CheckIfBanned(user, dbCtx);
 
-            if(user.VerificationExpiry < DateTime.UtcNow || user.VerificationCodeAttempts >= MaxVerificationCodeAttempts)
+            // check if verification code has expired
+            if (user.VerificationExpiry < DateTime.UtcNow || user.VerificationCodeAttempts >= MaxVerificationCodeAttempts)
             {
                 user.VerificationCodeAttempts += 1;
                 user.VerificationExpiry = DateTime.MinValue;
@@ -252,58 +253,129 @@ namespace Confab.Services
                 throw new UserLoginVerificationCodeExpiredException();
             }
 
-            if (user.VerificationCode.Equals(userLogin.LoginCode))
-            {
-                user.VerificationExpiry = DateTime.MinValue;
-                user.VerificationCode = null;
-                user.LastActive = DateTime.UtcNow;
-
-                user.VerificationCodeEmailCount = 0;
-                user.VerificationCodeFirstEmail = DateTime.MinValue;
-    
-                if (user.AccountCreation == DateTime.MinValue)
-                {
-                    user.AccountCreation = DateTime.UtcNow;
-                }
-
-                dbCtx.Users.Update(user);
-                await dbCtx.SaveChangesAsync();
-
-                var claims = new[]
-                {
-                    new Claim(AuthClaims.Claims.Id, user.Id.ToString()),
-                    //new Claim(AuthClaims.Claims.Email, user.Email),
-                    //new Claim(AuthClaims.Claims.Role, user.Role.ToString()),
-                    //new Claim(AuthClaims.Claims.PublicId, user.PublicId),
-                    //new Claim(AuthClaims.Claims.IsBanned, user.PublicId),
-                };
-
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey));
-
-                var token = new JwtSecurityTokenHandler().CreateJwtSecurityToken(
-                        issuer: JwtValidationParams.ValidIssuer,
-                        audience: JwtValidationParams.ValidAudience,
-                        subject: new ClaimsIdentity(claims),
-                        notBefore: DateTime.UtcNow,
-                        expires: DateTime.UtcNow.AddDays(7),
-                        null,
-                        signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
-                        encryptingCredentials: new EncryptingCredentials(key, JwtConstants.DirectKeyUseAlg,
-                            SecurityAlgorithms.Aes256CbcHmacSha512)
-                    );
-
-                return new LoginResponse { 
-                    Outcome = LoginOutcome.Success, 
-                    Token = new JwtSecurityTokenHandler().WriteToken(token) 
-                };
-            }
-            else
+            // check if verification code is incorrect
+            if (!user.VerificationCode.Equals(userLogin.LoginCode))
             {
                 user.VerificationCodeAttempts += 1;
                 dbCtx.Users.Update(user);
                 await dbCtx.SaveChangesAsync();
                 throw new UserLoginFailedException();
             }
+
+            // everything checks out, proceed with login
+
+            // update user record to reflect successful login
+            user.VerificationExpiry = DateTime.MinValue;
+            user.VerificationCode = null;
+            user.LastActive = DateTime.UtcNow;
+
+            user.VerificationCodeEmailCount = 0;
+            user.VerificationCodeFirstEmail = DateTime.MinValue;
+
+            if (user.AccountCreation == DateTime.MinValue)
+            {
+                user.AccountCreation = DateTime.UtcNow;
+            }
+
+            dbCtx.Users.Update(user);
+            await dbCtx.SaveChangesAsync();
+
+            // check if merge anon account is requested
+            if (userLogin.MergeAnonAccount)
+            {
+                // decode JWT, get anon user
+                UserSchema anonUser = await GetUserFromJWT(httpContext, dbCtx);
+
+                if (anonUser != null)
+                {
+                    await MergeAnonAccount(user, anonUser, dbCtx);
+                }
+            }
+
+            // generate JWT
+            var claims = new[]
+            {
+                new Claim(AuthClaims.Claims.Id, user.Id.ToString()),
+                //new Claim(AuthClaims.Claims.Email, user.Email),
+                //new Claim(AuthClaims.Claims.Role, user.Role.ToString()),
+                //new Claim(AuthClaims.Claims.PublicId, user.PublicId),
+                //new Claim(AuthClaims.Claims.IsBanned, user.PublicId),
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtKey));
+
+            var token = new JwtSecurityTokenHandler().CreateJwtSecurityToken(
+                    issuer: JwtValidationParams.ValidIssuer,
+                    audience: JwtValidationParams.ValidAudience,
+                    subject: new ClaimsIdentity(claims),
+                    notBefore: DateTime.UtcNow,
+                    expires: DateTime.UtcNow.AddDays(7),
+                    null,
+                    signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256),
+                    encryptingCredentials: new EncryptingCredentials(key, JwtConstants.DirectKeyUseAlg,
+                        SecurityAlgorithms.Aes256CbcHmacSha512)
+                );
+
+            return new LoginResponse
+            {
+                Outcome = LoginOutcome.Success,
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
+            };
+
+        }
+
+        private async Task MergeAnonAccount(UserSchema authenticatedUser, UserSchema anonUser, DataContext dbCtx)
+        {
+            // count number of authenticatedUser's comments before merge
+            int authUserInitialCommentCount = await dbCtx.Comments.Where(c => c.Author == authenticatedUser).CountAsync();
+
+            // change all anonUser's comments to authenticatedUser
+            List<CommentSchema> anonUserComments = await dbCtx.Comments.Where(c => c.Author == anonUser).ToListAsync();
+
+            foreach (CommentSchema comment in anonUserComments)
+            {
+                comment.Author = authenticatedUser;
+                dbCtx.Comments.Update(comment);
+            }
+
+            // port anonUser's votes to authenticatedUser.
+            dbCtx.Entry(anonUser).Collection(u => u.UpvotedComments).Load();
+            dbCtx.Entry(anonUser).Collection(u => u.DownvotedComments).Load();
+
+            dbCtx.Entry(authenticatedUser).Collection(u => u.UpvotedComments).Load();
+            dbCtx.Entry(authenticatedUser).Collection(u => u.DownvotedComments).Load();
+
+            // if both users have voted on the same comment, anonUser's vote will overwrite authenticatedUser's vote
+            foreach (CommentSchema comment in anonUser.UpvotedComments)
+            {
+                if (!authenticatedUser.UpvotedComments.Contains(comment))
+                {
+                    authenticatedUser.UpvotedComments.Add(comment);
+                }
+                authenticatedUser.DownvotedComments.Remove(comment);
+            }
+
+            foreach (CommentSchema comment in anonUser.DownvotedComments)
+            {
+                if (!authenticatedUser.DownvotedComments.Contains(comment))
+                {
+                    authenticatedUser.DownvotedComments.Add(comment);
+                }
+                authenticatedUser.UpvotedComments.Remove(comment);
+            }
+
+            // if authenticatedUser previously did not have comments, change authenticatedUser's publicId to anonUser's publicId
+            if (authUserInitialCommentCount != 0)
+            {
+                authenticatedUser.PublicId = anonUser.PublicId;
+            }
+
+            // update authenticatedUser
+            dbCtx.Users.Update(authenticatedUser);
+            // and delete anonUser
+            dbCtx.Users.Remove(anonUser);
+
+            await dbCtx.SaveChangesAsync();
         }
 
         public async Task<LoginResponse> AnonLogin(HttpContext httpContext, DataContext context)
@@ -486,8 +558,9 @@ namespace Confab.Services
             string[] adjectiveArr = { "abiding", "able", "absorbing", "abundant", "acclaimed", "active", "adaptable", "adaptive", "adept", "admirable", "admired", "adorable", "adroit", "adventurous", "aesthetic", "affable", "affectionate", "affirmative", "agile", "agreeable", "airy", "alchemical", "alert", "alluring", "altruistic", "amazing", "ambitious", "ambrosial", "amiable", "amicable", "amped", "ample", "amused", "amusing", "analytical", "angelic", "animated", "anticipative", "appealing", "appetizing", "appreciable", "appreciative", "approachable", "artful", "artistic", "assertive", "astonishing", "astounding", "astute", "athletic", "attentive", "attractive", "auspicious", "authentic", "awesome", "balanced", "balmy", "beaming", "beauteous", "beautiful", "beguiling", "beloved", "benevolent", "benign", "blazing", "blessed", "blissed-out", "blissful", "bodacious", "boisterous", "bold", "boundless", "bountiful", "brave", "breathtaking", "bright", "brilliant", "bubbly", "buoyant", "calm", "candid", "capable", "captivating", "carefree", "caring", "catalytic", "charismatic", "charming", "cheerful", "cherished", "chirpy", "chivalrous", "clairvoyant", "clarion", "classy", "clever", "cogent", "cognizant", "colorful", "comely", "comfortable", "committed", "communal", "compassionate", "composed", "conducive", "confident", "connected", "conscientious", "conscious", "considerate", "consistent", "contagious", "content", "convincing", "convivial", "cordial", "courageous", "cozy", "creative", "crisp", "crucial", "cuddly", "cultivated", "cultured", "curious", "cute", "dandy", "dapper", "daring", "dauntless", "dazzling", "dear", "decisive", "dedicated", "definitive", "delicate", "delicious", "delightful", "dependable", "desirable", "determined", "devoted", "diligent", "divine", "driven", "durable", "dynamic", "eager", "earnest", "easygoing", "ebullient", "eclectic", "effervescent", "efficient", "effortless", "elegant", "eloquent", "eminent", "empathetic", "enchanted", "enchanting", "encouraging", "endearing", "enduring", "energetic", "engaging", "enigmatic", "enjoyable", "enlivened", "entertaining", "enthusiastic", "ephemeral", "epic", "equanimous", "essential", "eternal", "ethical", "eudaimonic", "euphoric", "evolving", "exalted", "excellent", "exciting", "exemplary", "exhilarating", "expressive", "exquisite", "extraordinary", "exuberant", "exultant", "fabulous", "fair", "faithful", "fantastic", "fascinating", "fearless", "fecund", "fervent", "fetching", "fierce", "flourishing", "fluid", "focused", "fortuitous", "foxy", "fragrant", "free-spirited", "fresh", "friendly", "fulfilled", "fulfilling", "fun-loving", "funny", "gallant", "generative", "generous", "genius", "gentle", "genuine", "glamorous", "gleaming", "gleeful", "glorious", "glowing", "gorgeous", "graceful", "gracious", "grand", "grateful", "gratifying", "great-hearted", "gregarious", "grinning", "groovy", "groundbreaking", "guiding", "halcyon", "happy", "harmonious", "healing", "healthy", "heartfelt", "heartwarming", "heavenly", "helpful", "heroic", "high-spirited", "hilarious", "honest", "hopeful", "humble", "humorous", "idealistic", "illustrious", "imaginative", "impartial", "impeccable", "impressive", "incandescent", "inclusive", "incomparable", "incredible", "ineffable", "ingenious", "innovative", "inquisitive", "insightful", "inspired", "inspiring", "inspirited", "intelligent", "intrepid", "intuitive", "inventive", "invigorated", "invigorating", "invincible", "jaunty", "jovial", "joyful", "joyous", "jubilant", "judicious", "juxtaposed", "keen", "kind", "kind-hearted", "knowing", "knowledgeable", "laudable", "lavish", "lively", "lovable", "lovely", "loving", "loyal", "luminous", "magical", "magnificent", "majestic", "marvelous", "masterful", "mellifluous", "mellow", "melodic", "mesmerizing", "mindful", "miraculous", "mirthful", "motivated", "motivating", "natural", "noble", "nurturing", "open-hearted", "optimistic", "outstanding", "panoramic", "passionate", "patient", "peaceful", "perceptive", "perseverant", "persevering", "playful", "pleasant", "pleasing", "pleasurable", "plentiful", "plucky", "polished", "polite", "positive", "powerful", "practical", "precious", "prestigious", "prismatic", "proactive", "profound", "prosperous", "radiant", "refreshing", "relaxed", "reliable", "remarkable", "resilient", "resourceful", "respectful", "resplendent", "reverent", "revitalizing", "rhapsodic", "riveting", "robust", "romantic", "sagacious", "satisfying", "savvy", "scintillating", "scrumptious", "sensational", "sensible", "serendipitous", "serene", "shining", "sincere", "skilled", "skillful", "smart", "smooth", "sociable", "soft", "soothing", "soulful", "sparkling", "spectacular", "spellbinding", "spirited", "splendid", "spontaneous", "steadfast", "stellar", "stimulating", "strategic", "striking", "strong", "stunning", "stylish", "sublime", "sunny", "superb", "supportive", "surprising", "sustained", "sustaining", "sweeping", "sweet", "sympathetic", "synchronized", "talented", "tasty", "tenacious", "terrific", "thoughtful", "thrilling", "thriving", "titillating", "tranquil", "transcendent", "triumphant", "trusting", "trustworthy", "ubiquitous", "unabashed", "unconditional", "unstoppable", "upbeat", "uplifting", "valiant", "vibrant", "victorious", "vigorous", "virtuous", "vital", "vivacious", "warm", "warmhearted", "welcoming", "whimsical", "wholehearted", "wise", "witty", "wonderful", "wondrous", "worthy", "zealous", "zestful" };
             string[] animalArr = { "alpaca", "anteater", "antelope", "armadillo", "axolotl", "baboon", "barracuda", "bat", "bear", "bison", "bonobo", "butterfly", "caiman", "camel", "capybara", "cat", "chameleon", "cheetah", "cobra", "cow", "crocodile", "deer", "dhole", "dik-dik", "dingo", "dog", "dolphin", "duck", "dugong", "eagle", "echidna", "eel", "elephant", "elephant seal", "falcon", "fennec fox", "flamingo", "fossa", "frog", "gazelle", "gecko", "gharial", "gibbon", "giraffe", "gnu", "gorilla", "hamster", "hedgehog", "heron", "hippo", "hornbill", "horse", "ibex", "iguana", "impala", "jackal", "jaguar", "jaguarundi", "jellyfish", "kangaroo", "koala", "komodo dragon", "kookaburra", "lemming", "lemur", "leopard", "lion", "lizard", "llama", "lobster", "lorikeet", "loris", "mandrill", "mantis", "meerkat", "mole", "mongoose", "monkey", "narwhal", "numbat", "ocelot", "octopus", "okapi", "orangutan", "ostrich", "owl", "panda", "pangolin", "parrot", "peacock", "penguin", "pigeon", "platypus", "polar bear", "porcupine", "puffin", "puma", "quail", "quokka", "rabbit", "raccoon", "rat", "rattlesnake", "red panda", "rhino", "rhinoceros", "salamander", "salmon", "scorpion", "seahorse", "seal", "serval", "shark", "sloth", "sloth bear", "snake", "sparrow", "squid", "squirrel", "swan", "tamarin", "tapir", "tarsier", "tasmanian devil", "tiger", "toucan", "turtle", "uakari", "uguisu", "umbrellabird", "vaquita", "vervet monkey", "vicuña", "vulture", "wallaby", "wallaroo", "walrus", "warthog", "wildebeest", "wombat", "x-ray tetra", "xenops", "yak", "yellow-bellied marmot", "yellow-eyed penguin", "yellowjacket", "zebra", "zebra dove", "zebra shark", "zebradonkey", "zonkey", "zorilla" };
 
-            Random random = new Random(userSchema.Id + (int)userSchema.AccountCreation.ToBinary());     //hopefully at least semi-deterministic
-            
+            // use PublicId as seed for random number generator
+            Random random = new Random(userSchema.PublicId.GetHashCode());
+
             return (Capitalise(adjectiveArr[random.Next(0, adjectiveArr.Length)]) + " " + Capitalise(animalArr[random.Next(0, animalArr.Length)]));
         }
 
