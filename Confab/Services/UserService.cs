@@ -396,9 +396,15 @@ namespace Confab.Services
                 throw new UserBannedException();
             }
 
+            // check if account creation is disabled
             if(!(await dbCtx.GlobalSettings.SingleAsync()).AccountCreationEnabled)
             {
                 throw new AccountCreationDisabledException();
+            }
+            // check if account login is disabled
+            if(!(await dbCtx.GlobalSettings.SingleAsync()).AccountLoginEnabled)
+            {
+                throw new UserLoginDisabledException();
             }
 
             UserSchema user = await CreateNewAnonUser(dbCtx, IPRecord);
@@ -689,7 +695,7 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
             await UserService.EnsureNotBanned(user, dbCtx);
-            
+
             if (user.IsAnon) throw new InvalidAuthorizationException();
 
             user.ReplyNotificationsEnabled = newData.Enabled;
