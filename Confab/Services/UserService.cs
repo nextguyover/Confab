@@ -395,6 +395,11 @@ namespace Confab.Services
             {
                 throw new UserBannedException();
             }
+            
+            if(!(await dbCtx.GlobalSettings.SingleAsync()).AccountCreationEnabled)
+            {
+                throw new AccountCreationDisabledException();
+            }
 
             UserSchema user = await CreateNewAnonUser(dbCtx, IPRecord);
             await dbCtx.SaveChangesAsync();

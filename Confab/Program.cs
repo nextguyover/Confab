@@ -460,6 +460,11 @@ app.MapPost("/user/anon-login", async (HttpContext context, IUserService userSer
             return Results.StatusCode(401);
         }
 
+        if (ex is AccountCreationDisabledException)
+        {
+            return Results.StatusCode(403);
+        }
+
         app.Logger.LogError(ex.ToString());
         return Results.StatusCode(500);
     }
