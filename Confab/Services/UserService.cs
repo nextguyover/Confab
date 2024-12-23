@@ -395,7 +395,7 @@ namespace Confab.Services
             {
                 throw new UserBannedException();
             }
-            
+
             if(!(await dbCtx.GlobalSettings.SingleAsync()).AccountCreationEnabled)
             {
                 throw new AccountCreationDisabledException();
@@ -493,6 +493,8 @@ namespace Confab.Services
 
             await UserService.EnsureNotBanned(user, dbCtx);
 
+            if (user.IsAnon) return false;
+
             return CustomUsernamesEnabled || user.Role == UserRole.Admin;
         }
 
@@ -507,7 +509,7 @@ namespace Confab.Services
 
             await UserService.EnsureNotBanned(user, dbCtx);
 
-            if(!CustomUsernamesEnabled && user.Role != UserRole.Admin)
+            if((!CustomUsernamesEnabled && user.Role != UserRole.Admin) || user.IsAnon)
             {
                 throw new CustomUsernameNotAllowedException();
             }
@@ -672,6 +674,8 @@ namespace Confab.Services
             }
             await UserService.EnsureNotBanned(user, dbCtx);
 
+            if (user.IsAnon) throw new InvalidAuthorizationException();
+
             return new UserReplyNotifications
             {
                 Enabled = user.ReplyNotificationsEnabled
@@ -685,6 +689,8 @@ namespace Confab.Services
                 throw new UserNotFoundException();
             }
             await UserService.EnsureNotBanned(user, dbCtx);
+            
+            if (user.IsAnon) throw new InvalidAuthorizationException();
 
             user.ReplyNotificationsEnabled = newData.Enabled;
             dbCtx.Users.Update(user);

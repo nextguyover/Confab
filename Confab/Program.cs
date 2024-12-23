@@ -568,7 +568,7 @@ app.MapGet("/user/reply-notifications", async (HttpContext context, IUserService
     }
     catch (Exception ex)
     {
-        if (ex is MissingAuthorizationException || ex is UserBannedException)
+        if (ex is MissingAuthorizationException || ex is UserBannedException || ex is InvalidAuthorizationException)
         {
             return Results.StatusCode(401);
         }
@@ -591,7 +591,7 @@ app.MapPost("/user/reply-notifications", async (UserReplyNotifications data, Htt
     }
     catch (Exception ex)
     {
-        if (ex is MissingAuthorizationException || ex is UserBannedException)
+        if (ex is MissingAuthorizationException || ex is UserBannedException || ex is InvalidAuthorizationException)
         {
             return Results.StatusCode(401);
         }
