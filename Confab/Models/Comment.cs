@@ -11,6 +11,7 @@
         public bool? EditHistoryAvailable { get; set; } = null;
         public bool? IsDeleted { get; set; } = null;
         public bool? IsBanned { get; set; } = null;
+        public bool? IsAnon { get; set; } = null;
         public bool? AwaitingModeration { get; set; } = null;
 
         public string AuthorUsername { get; set; } = null;

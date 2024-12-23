@@ -297,6 +297,7 @@ namespace Confab.Services
                 throw new UninitialisedLocationException();
             }
 
+            // If the user is not an admin and the location is hidden, or global commenting is hidden, return an empty list
             if((currentUser?.Role) != UserRole.Admin && 
                 (location.LocalStatus == CommentLocationSchema.CommentingStatus.Hidden || 
                 (await dbCtx.GlobalSettings.SingleAsync()).CommentingStatus == CommentLocationSchema.CommentingStatus.Hidden))
@@ -372,6 +373,7 @@ namespace Confab.Services
                     AuthorId = comment.Author.PublicId,
                     IsAuthor = comment.Author == currentUser ? true : null,
                     IsAdmin = comment.Author.Role == UserRole.Admin ? true : null,
+                    IsAnon = currentUser?.Role == UserRole.Admin ? (comment.Author.IsAnon ? true : null) : null,
                     Upvotes = comment.UpvotedUsers.Count == 0 ? null : comment.UpvotedUsers.Count,
                     Downvotes = comment.DownvotedUsers.Count == 0 ? null : comment.DownvotedUsers.Count,
                     UserVote = currentUser != null ? (currentUser.UpvotedComments.Contains(comment) ? Models.Vote.Upvote : (currentUser.DownvotedComments.Contains(comment) ? Models.Vote.Downvote : Models.Vote.None)) : null,
@@ -870,11 +872,13 @@ namespace Confab.Services
                     EditTime = !(comment.EditTime != DateTime.MinValue) ? null : comment.EditTime,
                     AuthorId = comment.Author.PublicId,
                     AuthorUsername = UserService.GetUsername(comment.Author),
+                    IsAnon = comment.Author.IsAnon,
                     ParentId = comment.ParentComment?.PublicId,
                     ParentCreationTime = comment.ParentComment?.CreationTime,
                     ParentContent = comment.ParentComment?.Content,
                     ParentAuthorId = comment.ParentComment?.Author.PublicId,
-                    ParentAuthorUsername = comment.ParentComment == null ? null : (UserService.GetUsername(comment.ParentComment?.Author)),
+                    ParentAuthorUsername = comment.ParentComment == null ? null : UserService.GetUsername(comment.ParentComment?.Author),
+                    ParentIsAnon = comment.ParentComment?.Author.IsAnon ?? false,
                 });
             }
 
