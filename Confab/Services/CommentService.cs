@@ -205,13 +205,15 @@ namespace Confab.Services
 
         private async Task VerifyCommentingEnabled(UserSchema user, CommentLocationSchema location, DataContext dbCtx)
         {
-            if (user.Role == UserRole.Admin) return;
+            if (user?.Role == UserRole.Admin) return;
 
             if (location.LocalStatus != CommentLocationSchema.CommentingStatus.Enabled 
                 || (await dbCtx.GlobalSettings.SingleAsync()).CommentingStatus != CommentLocationSchema.CommentingStatus.Enabled)
             {
                 throw new CommentingNotEnabledException();
             }
+
+            if (user == null) return;
 
             if (RateLimitingEnabled
                 && (await dbCtx.Comments
@@ -255,7 +257,12 @@ namespace Confab.Services
 
         public async Task<CommentingEnabled> CommentingEnabledAtLocation(CommentLocation commentLocation, ICommentLocationService locationService, HttpContext httpContext, DataContext dbCtx)
         {
-            UserSchema currentUser = await UserService.GetUserFromJWT(httpContext, dbCtx);
+            UserSchema currentUser = null;
+            try
+            {
+                currentUser = await UserService.GetUserFromJWT(httpContext, dbCtx);
+            } catch { }
+            
             await UserService.EnsureNotBanned(currentUser, dbCtx);
 
             CommentLocationSchema location = await locationService.GetLocation(dbCtx, commentLocation?.Location);
