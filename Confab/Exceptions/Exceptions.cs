@@ -30,4 +30,5 @@
     public class CustomUsernameNotAllowedException : Exception { }
     public class UserCommentRateLimitException : Exception { }
     public class EditHistoryDisabledException : Exception { }
+    public class AnonymousCommentingDisabledException : Exception { }
 }

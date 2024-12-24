@@ -460,7 +460,7 @@ app.MapPost("/user/anon-login", async (HttpContext context, IUserService userSer
             return Results.StatusCode(401);
         }
 
-        if (ex is AccountCreationDisabledException || ex is UserLoginDisabledException)
+        if (ex is AccountCreationDisabledException || ex is UserLoginDisabledException || ex is AnonymousCommentingDisabledException)
         {
             return Results.StatusCode(403);
         }

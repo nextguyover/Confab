@@ -382,6 +382,8 @@ namespace Confab.Services
 
         public async Task<LoginResponse> AnonLogin(HttpContext httpContext, DataContext dbCtx)
         {
+            if (!UserService.AnonymousCommentingEnabled) throw new AnonymousCommentingDisabledException();
+
             IPAddress clientIP = GetClientIP(httpContext);
 
             ClientIPSchema IPRecord = await dbCtx.ClientIPs.SingleOrDefaultAsync(o => o.IPAddressBytes.Equals(clientIP.GetAddressBytes()));
