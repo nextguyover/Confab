@@ -5,6 +5,7 @@
         public LoginOutcome Outcome { get; set; }
         public string ErrorMessage { get; set; }
         public string Token { get; set; }
+        public string CaptchaSitekey { get; set; }
     }
 
     public enum LoginOutcome : short
@@ -20,5 +21,6 @@
         VerificationEmailsRateLimit = 8,
         AuthenticationDisabled = 9,
         MaxNewSignupsLimitFailure = 10,
+        CaptchaRequired = 11,
     }
 }

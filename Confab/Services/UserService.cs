@@ -30,6 +30,11 @@ namespace Confab.Services
         public static int MaxNewSignupsDurationMinutes = 60;
 
         public static bool AnonymousCommentingEnabled = false;
+        public static int AnonymousAccountCreationsPerIPLimit = 10;
+        public static int AnonymousAccountCreationsPerIPDurationMins = 60;
+        public static bool AnonymousAccountCaptchaEnabled = false;
+        public static int AnonymousAccountCaptchaThreshold = 1;
+        public static string AnonymousAccountCaptchaSiteKey = "";
 
         public static bool CustomUsernamesEnabled = false;
         public static int UsernameChangeCooldownTimeMins = 60;
@@ -380,7 +385,7 @@ namespace Confab.Services
             await dbCtx.SaveChangesAsync();
         }
 
-        public async Task<LoginResponse> AnonLogin(HttpContext httpContext, DataContext dbCtx)
+        public async Task<LoginResponse> AnonLogin(AnonUserLogin anonUserLogin, HttpContext httpContext, DataContext dbCtx)
         {
             if (!UserService.AnonymousCommentingEnabled) throw new AnonymousCommentingDisabledException();
 
@@ -407,6 +412,21 @@ namespace Confab.Services
             if(!(await dbCtx.GlobalSettings.SingleAsync()).AccountLoginEnabled)
             {
                 throw new UserLoginDisabledException();
+            }
+
+            // check rate limits
+            if(await AnonAccountCreationRateLimited(IPRecord, dbCtx))
+            {
+                throw new RateLimitException();
+            }
+
+            // check if captcha is enabled, and if captcha threshold is exceeded
+            if(AnonymousAccountCaptchaEnabled 
+            && await dbCtx.Users.Where(u => u.CreationIP == IPRecord 
+                && u.IsAnon 
+                && u.RecordCreation > DateTime.UtcNow.AddMinutes(-1 * AnonymousAccountCreationsPerIPDurationMins)).CountAsync() >= AnonymousAccountCaptchaThreshold)
+            {
+                return new LoginResponse { Outcome = LoginOutcome.CaptchaRequired, CaptchaSitekey = AnonymousAccountCaptchaSiteKey };
             }
 
             UserSchema user = await CreateNewAnonUser(dbCtx, IPRecord);
@@ -488,6 +508,13 @@ namespace Confab.Services
             {
                 throw new UserLoginDisabledException();
             }
+        }
+
+        private async Task<bool> AnonAccountCreationRateLimited(ClientIPSchema IPRecord, DataContext dbCtx)
+        {
+            return await dbCtx.Users.Where(u => u.CreationIP == IPRecord 
+            && u.IsAnon 
+            && u.RecordCreation > DateTime.UtcNow.AddMinutes(-1 * AnonymousAccountCreationsPerIPDurationMins)).CountAsync() >= AnonymousAccountCreationsPerIPLimit;
         }
 
         public async Task<bool> GetChangeUsernameAvailable(HttpContext httpContext, DataContext dbCtx)
@@ -775,13 +802,11 @@ namespace Confab.Services
 
             if (IPRecord != null)
             {
-                if (IPRecord.IsBanned)
-                {
-                    return false;
-                }
+                if (IPRecord.IsBanned) return false;
 
-                // TODO: implement rate limit check
+                if(await AnonAccountCreationRateLimited(IPRecord, dbCtx)) return false;
             }
+            // if IPRecord is null, this is a new IP, so allow commenting
 
             return true;            
         }

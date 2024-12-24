@@ -10,7 +10,7 @@ namespace Confab.Services.Interfaces
     public interface IUserService
     {
         public Task<LoginResponse> Login(UserLogin userLogin, HttpContext httpContext, DataContext dbCtx);
-        public Task<LoginResponse> AnonLogin(HttpContext clientIP, DataContext dbCtx);
+        public Task<LoginResponse> AnonLogin(AnonUserLogin anonUserLogin, HttpContext clientIP, DataContext dbCtx);
         public Task ChangeUsername(UsernameChange usernameChange, HttpContext httpContext, DataContext dbCtx);
         public Task<bool> UserIdExists(string publicUserId, DataContext dbCtx);
         public Task<bool> IsAdmin(HttpContext httpContext, DataContext dbCtx);

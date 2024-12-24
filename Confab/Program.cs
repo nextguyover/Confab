@@ -151,6 +151,11 @@ UserService.MaxNewSignups = int.Parse(builder.Configuration["UserAuthParams:MaxN
 UserService.MaxNewSignupsDurationMinutes = int.Parse(builder.Configuration["UserAuthParams:MaxNewSignupsDurationMinutes"]);
 
 UserService.AnonymousCommentingEnabled = bool.Parse(builder.Configuration["AnonymousCommenting:Enabled"]);
+UserService.AnonymousAccountCreationsPerIPLimit = int.Parse(builder.Configuration["AnonymousCommenting:AnonAccCreationsPerIPLimit"]);
+UserService.AnonymousAccountCreationsPerIPDurationMins = int.Parse(builder.Configuration["AnonymousCommenting:AnonAccountCreationPerIPCooldownMins"]);
+UserService.AnonymousAccountCaptchaEnabled = bool.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:Enabled"]);
+UserService.AnonymousAccountCaptchaThreshold = int.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:AnonAccCreationsPerIPCaptchaThreshold"]);
+UserService.AnonymousAccountCaptchaSiteKey = builder.Configuration["AnonymousCommenting:hCaptcha:SiteKey"];
 
 UserService.CustomUsernamesEnabled = bool.Parse(builder.Configuration["Usernames:CustomUsernamesEnabled"]);
 UserService.UsernameChangeCooldownTimeMins = int.Parse(builder.Configuration["Usernames:UsernameChangeCooldownTimeMins"]);
@@ -448,10 +453,10 @@ app.MapPost("/user/login", async (UserLogin userLogin, HttpContext context, IUse
     }
 });
 
-app.MapPost("/user/anon-login", async (HttpContext context, IUserService userService, DataContext dbCtx) =>
+app.MapPost("/user/anon-login", async (AnonUserLogin anonUserLogin, HttpContext context, IUserService userService, DataContext dbCtx) =>
 {
     try {
-        return Results.Ok(await userService.AnonLogin(context, dbCtx));
+        return Results.Ok(await userService.AnonLogin(anonUserLogin, context, dbCtx));
     }
     catch (Exception ex)
     {
@@ -463,6 +468,11 @@ app.MapPost("/user/anon-login", async (HttpContext context, IUserService userSer
         if (ex is AccountCreationDisabledException || ex is UserLoginDisabledException || ex is AnonymousCommentingDisabledException)
         {
             return Results.StatusCode(403);
+        }
+
+        if (ex is RateLimitException)
+        {
+            return Results.StatusCode(429);
         }
 
         app.Logger.LogError(ex.ToString());
