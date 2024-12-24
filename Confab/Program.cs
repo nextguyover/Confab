@@ -156,6 +156,7 @@ UserService.AnonymousAccountCreationsPerIPDurationMins = int.Parse(builder.Confi
 UserService.AnonymousAccountCaptchaEnabled = bool.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:Enabled"]);
 UserService.AnonymousAccountCaptchaThreshold = int.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:AnonAccCreationsPerIPCaptchaThreshold"]);
 UserService.AnonymousAccountCaptchaSiteKey = builder.Configuration["AnonymousCommenting:hCaptcha:SiteKey"];
+UserService.AnonymousAccountCaptchaSecret = builder.Configuration["AnonymousCommenting:hCaptcha:Secret"];
 
 UserService.CustomUsernamesEnabled = bool.Parse(builder.Configuration["Usernames:CustomUsernamesEnabled"]);
 UserService.UsernameChangeCooldownTimeMins = int.Parse(builder.Configuration["Usernames:UsernameChangeCooldownTimeMins"]);
@@ -460,6 +461,10 @@ app.MapPost("/user/anon-login", async (AnonUserLogin anonUserLogin, HttpContext 
     }
     catch (Exception ex)
     {
+        if (ex is CaptchaVerificationFailedException){
+            return Results.StatusCode(400);
+        }
+        
         if (ex is UserBannedException)
         {
             return Results.StatusCode(401);

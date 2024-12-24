@@ -35,6 +35,9 @@ namespace Confab.Services
         public static bool AnonymousAccountCaptchaEnabled = false;
         public static int AnonymousAccountCaptchaThreshold = 1;
         public static string AnonymousAccountCaptchaSiteKey = "";
+        public static string AnonymousAccountCaptchaSecret = "";
+
+        private static readonly HttpClient HttpClient = new HttpClient();
 
         public static bool CustomUsernamesEnabled = false;
         public static int UsernameChangeCooldownTimeMins = 60;
@@ -426,7 +429,13 @@ namespace Confab.Services
                 && u.IsAnon 
                 && u.RecordCreation > DateTime.UtcNow.AddMinutes(-1 * AnonymousAccountCreationsPerIPDurationMins)).CountAsync() >= AnonymousAccountCaptchaThreshold)
             {
-                return new LoginResponse { Outcome = LoginOutcome.CaptchaRequired, CaptchaSitekey = AnonymousAccountCaptchaSiteKey };
+                if(anonUserLogin != null && !anonUserLogin.CaptchaToken.IsNullOrEmpty()){
+                    if(!await VerifyCaptcha(anonUserLogin.CaptchaToken, clientIP)){
+                        throw new CaptchaVerificationFailedException();
+                    }
+                } else {
+                    return new LoginResponse { Outcome = LoginOutcome.CaptchaRequired, CaptchaSitekey = AnonymousAccountCaptchaSiteKey };
+                }
             }
 
             UserSchema user = await CreateNewAnonUser(dbCtx, IPRecord);
@@ -515,6 +524,36 @@ namespace Confab.Services
             return await dbCtx.Users.Where(u => u.CreationIP == IPRecord 
             && u.IsAnon 
             && u.RecordCreation > DateTime.UtcNow.AddMinutes(-1 * AnonymousAccountCreationsPerIPDurationMins)).CountAsync() >= AnonymousAccountCreationsPerIPLimit;
+        }
+
+        // based on https://github.com/BenjaminAbt/hcaptcha/blob/2bdd13b64c3d35add8d18d0e8aeeba17d1a35633/README.md?plain=1#L103
+        private async Task<bool> VerifyCaptcha(string token, IPAddress remoteIp)
+        {
+            try
+            {
+                // create post data
+                List<KeyValuePair<string, string>> postData = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>("secret", AnonymousAccountCaptchaSecret),
+                    new KeyValuePair<string, string>("response", token),
+                    new KeyValuePair<string, string>("remoteip", remoteIp.ToString())
+                };
+
+                // request api
+                HttpResponseMessage response = await HttpClient.PostAsync(
+                    // hCaptcha wants URL-encoded POST
+                    "https://hcaptcha.com/siteverify", new FormUrlEncodedContent(postData));
+
+                response.EnsureSuccessStatusCode();
+
+                // read response
+                string responseString = await response.Content.ReadAsStringAsync();
+
+                return responseString.Contains("\"success\":true") || responseString.Contains("\"success\": true");
+            }
+            catch { }
+
+            return false;
         }
 
         public async Task<bool> GetChangeUsernameAvailable(HttpContext httpContext, DataContext dbCtx)
