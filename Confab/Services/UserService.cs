@@ -29,8 +29,8 @@ namespace Confab.Services
         public static int MaxNewSignups = -1;
         public static int MaxNewSignupsDurationMinutes = 60;
 
-        public static bool AnonymousCommentingEnabled = false;
-        public static int AnonymousAccountCreationsPerIPLimit = 10;
+        public static bool AnonymousCommentingEnabled = true;
+        public static int AnonymousAccountCreationsPerIPLimit = 5;
         public static int AnonymousAccountCreationsPerIPDurationMins = 60;
         public static bool AnonymousAccountCaptchaEnabled = false;
         public static int AnonymousAccountCaptchaThreshold = 1;
