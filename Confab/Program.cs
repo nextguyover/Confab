@@ -151,10 +151,10 @@ UserService.MaxNewSignups = int.Parse(builder.Configuration["UserAuthParams:MaxN
 UserService.MaxNewSignupsDurationMinutes = int.Parse(builder.Configuration["UserAuthParams:MaxNewSignupsDurationMinutes"]);
 
 UserService.AnonymousCommentingEnabled = bool.Parse(builder.Configuration["AnonymousCommenting:Enabled"]);
-UserService.AnonymousAccountCreationsPerIPLimit = int.Parse(builder.Configuration["AnonymousCommenting:AnonAccCreationsPerIPLimit"]);
-UserService.AnonymousAccountCreationsPerIPDurationMins = int.Parse(builder.Configuration["AnonymousCommenting:AnonAccountCreationPerIPCooldownMins"]);
+UserService.AnonymousAccountCreationsPerIPLimit = int.Parse(builder.Configuration["AnonymousCommenting:AnonAccountCreationsPerIPLimit"]);
+UserService.AnonymousAccountCreationsPerIPDurationMins = int.Parse(builder.Configuration["AnonymousCommenting:AnonAccountCreationPerIPTimeDurationMins"]);
 UserService.AnonymousAccountCaptchaEnabled = bool.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:Enabled"]);
-UserService.AnonymousAccountCaptchaThreshold = int.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:AnonAccCreationsPerIPCaptchaThreshold"]);
+UserService.AnonymousAccountCaptchaThreshold = int.Parse(builder.Configuration["AnonymousCommenting:hCaptcha:AnonAccountCreationsPerIPCaptchaThreshold"]);
 UserService.AnonymousAccountCaptchaSiteKey = builder.Configuration["AnonymousCommenting:hCaptcha:SiteKey"];
 UserService.AnonymousAccountCaptchaSecret = builder.Configuration["AnonymousCommenting:hCaptcha:Secret"];
 
