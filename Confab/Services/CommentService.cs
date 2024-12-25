@@ -28,6 +28,7 @@ namespace Confab.Services
     public class CommentService : ICommentService
     {
         public static bool ManualModerationEnabled = true;
+        public static bool ManualModerationEnabledForAnon = true;
         public static int MaxModQueueCommentCountPerUser = 5;
 
         public enum CommentEditMode { Disabled, DurationAfterCreation, WhileAwaitingModeration, Always }
@@ -63,7 +64,7 @@ namespace Confab.Services
             newComment.Content = commentCreate.Content;
             newComment.CreationTime = DateTime.UtcNow;
 
-            if (ManualModerationEnabled && author.Role != UserRole.Admin)
+            if ((ManualModerationEnabled || (ManualModerationEnabledForAnon && author.IsAnon)) && author.Role != UserRole.Admin)
             {
                 newComment.AwaitingModeration = true;
             } 
@@ -224,7 +225,8 @@ namespace Confab.Services
                 throw new UserCommentRateLimitException();
             }
 
-            if (ManualModerationEnabled && (await dbCtx.Comments
+            if ((ManualModerationEnabled || (ManualModerationEnabledForAnon && user.IsAnon)) 
+                && (await dbCtx.Comments
                     .Where(c => c.Author == user)
                     .Where(c => c.AwaitingModeration)
                     .ToListAsync()).Count >= MaxModQueueCommentCountPerUser)

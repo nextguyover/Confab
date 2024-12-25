@@ -131,6 +131,7 @@ builder.Services.Configure<JsonOptions>(options =>
 CommentLocationService.PageDetectionRegex = builder.Configuration["CommentSettings:PageDetectionRegex"];
 
 CommentService.ManualModerationEnabled = bool.Parse(builder.Configuration["CommentSettings:Moderation:ManualModerationEnabled"]);
+CommentService.ManualModerationEnabledForAnon = bool.Parse(builder.Configuration["CommentSettings:Moderation:ManualModerationEnabledOverrideForAnon"]);
 CommentService.MaxModQueueCommentCountPerUser = int.Parse(builder.Configuration["CommentSettings:Moderation:MaxModQueueCommentCountPerUser"]);
 CommentService.EditMode = Enum.Parse<CommentService.CommentEditMode>(builder.Configuration["CommentSettings:Edits:Mode"]);
 CommentService.EditDurationAfterCreationMins = int.Parse(builder.Configuration["CommentSettings:Edits:DurationAfterCreationMins"]);
