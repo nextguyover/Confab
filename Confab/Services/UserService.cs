@@ -244,7 +244,7 @@ namespace Confab.Services
             
             UserSchema anonUser = null;
             try{
-                anonUser = await GetUserFromJWT(httpContext, dbCtx); // decode JWT, get anon user (if sent)
+                if (httpContext != null) anonUser = await GetUserFromJWT(httpContext, dbCtx); // decode JWT, get anon user (if sent)
             } catch (MissingAuthorizationException) {}  //if no JWT, don't assign anonUser
 
             if (user == null)    //if user doesn't exist, can't login
