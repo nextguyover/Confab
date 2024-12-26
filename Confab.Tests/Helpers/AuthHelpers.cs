@@ -19,7 +19,7 @@ namespace Confab.Tests.Helpers
                 await userService.SendVerificationCode(userLogin, emailService, locationService, dbCtx, true);
                 userLogin.LoginCode = dbCtx.Users.Single(u => u.Email == email).VerificationCode;
 
-                LoginResponse loginResponse = await userService.Login(userLogin, dbCtx);
+                LoginResponse loginResponse = await userService.Login(userLogin, null, dbCtx);
 
                 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {loginResponse.Token}");
             }

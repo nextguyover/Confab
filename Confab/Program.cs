@@ -220,8 +220,7 @@ using (var dbCtx = scope.ServiceProvider.GetService<DataContext>())
     try {   // Create the database directory if it doesn't exist
         Directory.CreateDirectory(Path.GetDirectoryName(dbCtx.Database.GetDbConnection().DataSource));
     } catch {}
-    //dbCtx.Database.Migrate();     //TODO: apply migrations and change this back
-    dbCtx.Database.EnsureCreated();
+    dbCtx.Database.Migrate();
 
     if (await dbCtx.GlobalSettings.SingleOrDefaultAsync() == null)
     {
