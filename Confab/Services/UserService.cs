@@ -248,9 +248,10 @@ namespace Confab.Services
             } catch (MissingAuthorizationException) {}  //if no JWT, don't assign anonUser
 
             if (user == null)    //if user doesn't exist, can't login
-            {
                 throw new UserNotFoundException();
-            }
+            
+            if (anonUser != null && (anonUser.IsAnon == false || user == anonUser))    // validate anon user
+                throw new InvalidAnonUserForMergeException();
 
             await VerifyUserLoginEnabled(user, dbCtx);
 

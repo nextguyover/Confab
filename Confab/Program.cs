@@ -449,6 +449,14 @@ app.MapPost("/user/login", async (UserLogin userLogin, HttpContext context, IUse
             return Results.BadRequest(new LoginResponse());
         }
 
+        if (ex is InvalidAnonUserForMergeException)
+        {
+            return Results.BadRequest(new LoginResponse
+            {
+                Outcome = LoginOutcome.VerificationCodeGenericFailure
+            });
+        }
+
         app.Logger.LogError(ex.ToString());
         return Results.StatusCode(500);
     }

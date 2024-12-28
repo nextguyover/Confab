@@ -32,4 +32,5 @@
     public class EditHistoryDisabledException : Exception { }
     public class AnonymousCommentingDisabledException : Exception { }
     public class CaptchaVerificationFailedException : Exception { }
+    public class InvalidAnonUserForMergeException : Exception { }
 }
