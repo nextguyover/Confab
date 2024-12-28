@@ -14,7 +14,7 @@ Confab is a drop-in commenting solution for your website. [Learn more](https://d
 
 ### Features
 
-- Anonymmous commenting + passwordless user authentication via email
+- Anonymous commenting + passwordless user authentication via email
 - Full markdown support
 - Comment edits (with edit history)
 - Admin moderation features, including a manual moderation queue, basic auto moderation, mass deletion and banning
