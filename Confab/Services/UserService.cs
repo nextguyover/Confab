@@ -376,7 +376,7 @@ namespace Confab.Services
             }
 
             // if authenticatedUser previously did not have comments, change authenticatedUser's publicId to anonUser's publicId
-            if (authUserInitialCommentCount != 0)
+            if (authUserInitialCommentCount != 0 && authenticatedUser.Role != UserRole.Admin)  // don't change publicId for admin
             {
                 authenticatedUser.PublicId = anonUser.PublicId;
             }
